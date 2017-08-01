@@ -18,8 +18,8 @@ uint16_t chat_id = 0;             //Broadcast the message
 String distance = "";            // a string to hold incoming data
 
 uint8_t ranging_protocol = POZYX_RANGE_PROTOCOL_PRECISION; // ranging protocol of the Pozyx.
-const int num_cars = 1;
-uint16_t car_ids[num_cars] = {0x6806}; //Default is car0 so only range car1
+const int num_cars = 2; //Amount of other cars
+uint16_t car_ids[num_cars] = {0x6806,0x6827}; //Default is car0 sender so only range car1,car2 receivers
 
 void setup(){
   Serial.begin(57600);
@@ -32,8 +32,13 @@ void setup(){
   }
   // read the network id of this device
   Pozyx.regRead(POZYX_NETWORK_ID, (uint8_t*)&source_id, 2);
-  if (String(source_id,HEX) == "6867"){
-    car_ids[0] = 0x6802; //This is car1 so only range car0
+  if (String(source_id,HEX) == "6867"){ //This is car1 sender 
+    car_ids[0] = 0x6802; //so only range car0 receiver
+    car_ids[1] = 0x6827; //and car2 reciever
+  }
+  else if (String(source_id,HEX) == "685b"){ //This is car2 sender
+    car_ids[0] = 0x6802; //so only range car0
+    car_ids[1] = 0x6806; //and car1
   }
 }
 

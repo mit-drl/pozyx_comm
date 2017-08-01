@@ -8,10 +8,10 @@ ros::NodeHandle  nh;
 sensor_msgs::Range range_msg;
 ros::Publisher pub_range( "range_data", &range_msg);
 
-const char *car_ids[4] = {"6802","6835","6806","6867"}; //every car id
-const char *car_num[4] = {"car0","car0","car1","car1"}; //assign car number to each id
+const char *car_ids[6] = {"6802","6835","6806","6867","6827","685b"}; //every car id (Receiver, Sender)
+const int num_ids = sizeof(car_ids)/2; //amount of total ids
+const char *car_num[num_ids] = {"car0","car0","car1","car1","car2","car2"}; //assign car number to each id
 int repeat[] = {0,1};
-int num_ids = sizeof(car_ids)/2; //amount of total cars
 String my_id;
 
   
