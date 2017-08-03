@@ -90,7 +90,7 @@ void loop()
 
 void send_message() {
     int car_data_size = sizeof(dq_range);
-    size_t total_car_data = sizeof(dq_header) + num_cars * car_data_size + sizeof(dq_gps);
+    size_t total_car_data = sizeof(dq_header) + num_cars * car_data_size;
     uint8_t buffer[total_car_data];
     dq_header header = {0, num_cars};
 
