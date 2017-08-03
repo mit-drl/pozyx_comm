@@ -1,14 +1,14 @@
 #include <Pozyx.h>
 #include <Pozyx_definitions.h>
 #include <Wire.h>
-#include <ros.h>
-#include <sensor_msgs/NavSatFix.h>
 #include <common.h>
+#include <NMEAGPS.h>
 
-/*void getgps(const sensor_msgs::NavSatFix& gps_msg)
-  if(gps_msg.data > 1.0)
-    digitalWrite(13, HIGH-digitalRead(13));   // blink the led
-}*/
+//GPSBAUD 4800
+#define gpsPort Serial1
+
+NMEAGPS  gps; // This parses the GPS characters
+gps_fix  fix; // This holds on to the latest values
 
 uint16_t source_id;                 // the network id of this device
 uint16_t chat_id = 0;             //Broadcast the message
@@ -31,6 +31,7 @@ void setup_uwb()
 
 void setup(){
   Serial.begin(57600);
+  gpsPort.begin(4800);
   // initialize Pozyx
   if(Pozyx.begin() == POZYX_FAILURE){
     Serial.println("ERROR: Unable to connect to POZYX shield");
@@ -82,6 +83,9 @@ void loop()
 {
     discover();
     send_message();
+    while (gps.available( gpsPort )) {
+        send_message();  
+    }
 }
 
 void send_message() {
@@ -92,7 +96,18 @@ void send_message() {
 
     // writes message header
     memcpy(&buffer[0], &header, sizeof(dq_header));
-
+    fix = gps.read();
+    bool got_fix = false;
+    if (fix.valid.location) {
+        unsigned char gps_status = fix.status - 2;
+        float lat = fix.latitude();
+        float lon = fix.longitude();
+        float alt = fix.altitude();
+        dq_gps nmea = {gps_status,lat,lon,alt};
+        total_car_data += sizeof(dq_gps);
+        got_fix = true;
+        memcpy(buffer + sizeof(dq_gps), &nmea, sizeof(dq_gps));
+    }
     for (int i = 0; i < num_cars; i++) {
         if (String(source_id,HEX) != String(car_ids[i],HEX)) {
             device_range_t range;
@@ -102,9 +117,15 @@ void send_message() {
                 if (status == POZYX_SUCCESS) {
                     float dist = range.distance / 1000.0;
                     dq_range rng = {car_ids[i], dist};
-                    memcpy(buffer + i * car_data_size + sizeof(dq_header),
+                    if (got_fix) {
+                        memcpy(buffer + i * car_data_size + sizeof(dq_header) + sizeof(dq_gps),
                         &rng, sizeof(dq_range));
-                    break;
+                    }
+                    else {
+                        memcpy(buffer + i * car_data_size + sizeof(dq_header),
+                        &rng, sizeof(dq_range));
+                        break;
+                    }
                 }
             }
         }
