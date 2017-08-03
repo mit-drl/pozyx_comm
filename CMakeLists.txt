@@ -105,7 +105,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES pozyx_node
-#  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy rosserial sensor_msgs std_msgs
+CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy sensor_msgs std_msgs multi_car_msgs
 #  DEPENDS system_lib
 )
 
