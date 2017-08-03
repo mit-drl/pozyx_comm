@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include <ros.h>
 #include <sensor_msgs/NavSatFix.h>
+#include <common.h>
 
 /*void getgps(const sensor_msgs::NavSatFix& gps_msg)
   if(gps_msg.data > 1.0)
@@ -83,16 +84,6 @@ void loop()
     send_message();
 }
 
-typedef struct dq_range_t {
-    uint16_t id;
-    float dist;
-} dq_range;
-
-typedef struct dq_header_t {
-    uint8_t sensor_type;
-    uint16_t num_data;
-} dq_header;
-
 void send_message() {
     int car_data_size = sizeof(dq_range);
     size_t total_car_data = sizeof(dq_header) + num_cars * car_data_size;
@@ -123,5 +114,3 @@ void send_message() {
     status = Pozyx.sendTXBufferData(chat_id);
     delay(1);
 }
-
-

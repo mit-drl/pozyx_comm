@@ -4,6 +4,7 @@
 #include <ros.h>
 #include <sensor_msgs/Range.h>
 #include <multi_car_msgs/CarMeasurement.h>
+#include <common.h>
 
 ros::NodeHandle  nh;
 /* sensor_msgs::Range range_msg; */
@@ -45,16 +46,6 @@ void loop(){
   print_message();
 }
 
-typedef struct dq_range_t {
-    uint16_t id;
-    float dist;
-} dq_range;
-
-typedef struct dq_header_t {
-    uint8_t sensor_type;
-    uint16_t num_data;
-} dq_header;
-
 void parse_data(uint8_t *data)
 {
     dq_header header;
@@ -70,9 +61,12 @@ void parse_data(uint8_t *data)
         {
             memcpy(&rng, raw, sizeof(dq_range));
             /* meas.header.frame_id = rng.id; */
-            String(rng.id, HEX).toCharArray(meas.header.frame_id, sizeof(uint16_t));
-            meas.control.steering_angle = rng.dist;
-            pub_meas.publish(&meas);
+            /* String(rng.id, HEX).toCharArray(meas.header.frame_id, sizeof(uint16_t)); */
+            if (rng.dist > 0)
+            {
+                meas.control.steering_angle = rng.dist;
+                pub_meas.publish(&meas);
+            }
         }
     }
 }
