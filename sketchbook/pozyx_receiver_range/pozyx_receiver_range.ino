@@ -52,9 +52,10 @@ void parse_data(uint8_t *data)
     memcpy(&header, data, sizeof(dq_header));
 
     uint8_t *raw = data + sizeof(dq_header);
+    uint8_t *raw1 = data + sizeof(dq_header)+ sizeof(dq_range);
 
     // if range data
-    if (header.sensor_type == 0)
+    if (header.sensor_type >= 0)
     {
         dq_range rng;
         for (int i = 0; i < header.num_data; i++)
@@ -65,9 +66,20 @@ void parse_data(uint8_t *data)
             if (rng.dist > 0)
             {
                 meas.control.steering_angle = rng.dist;
-                pub_meas.publish(&meas);
             }
         }
+        
+        if (header.sensor_type == 1)
+        {
+          Serial.println("hi");
+            dq_gps nmea;
+            memcpy(&nmea, raw1, sizeof(dq_gps));
+            meas.gps.status.status = nmea.status;
+            meas.gps.latitude = nmea.lat;
+            meas.gps.longitude = nmea.lon;
+            meas.gps.altitude = nmea.alt;
+        }
+        pub_meas.publish(&meas);
     }
 }
 
