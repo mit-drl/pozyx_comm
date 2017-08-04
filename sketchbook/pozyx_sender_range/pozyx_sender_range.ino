@@ -1,18 +1,21 @@
 #include <Pozyx.h>
 #include <Pozyx_definitions.h>
 #include <Wire.h>
-#include <ros.h>
-#include <sensor_msgs/NavSatFix.h>
 #include <common.h>
+#include <NMEAGPS.h>
+#include <Time.h>
 
-/*void getgps(const sensor_msgs::NavSatFix& gps_msg)
-  if(gps_msg.data > 1.0)
-    digitalWrite(13, HIGH-digitalRead(13));   // blink the led
-}*/
+//GPSBAUD 4800
+#define gpsPort Serial1
+
+NMEAGPS  gps; // This parses the GPS characters
+gps_fix  fix; // This holds on to the latest values
 
 uint16_t source_id;                 // the network id of this device
 uint16_t chat_id = 0;             //Broadcast the message
 int status;
+time_t last_time = 0;
+const int offset = -5;  // Eastern Standard Time (USA)
 
 uint8_t ranging_protocol = POZYX_RANGE_PROTOCOL_PRECISION; // ranging protocol of the Pozyx.
 /* const int num_cars = 2; //Amount of other cars */
@@ -29,29 +32,37 @@ void setup_uwb()
     Pozyx.setUWBSettings(&uwb_settings);
 }
 
-void setup(){
-  Serial.begin(57600);
-  // initialize Pozyx
-  if(Pozyx.begin() == POZYX_FAILURE){
-    Serial.println("ERROR: Unable to connect to POZYX shield");
-    Serial.println("Reset required");
-    delay(100);
-    abort();
-  }
+void setup()
+{
+    Serial.begin(57600);
+    gpsPort.begin(4800);
+
+    // initialize Pozyx
+    if(Pozyx.begin() == POZYX_FAILURE)
+    {
+        Serial.println("ERROR: Unable to connect to POZYX shield");
+        Serial.println("Reset required");
+        delay(100);
+        abort();
+    }
+
     /* delay(1000); */
     //setup_uwb();
-  // read the network id of this device
-  /* Pozyx.setOperationMode(POZYX_ANCHOR_MODE); */
-  /* delay(1000); */
-  Pozyx.regRead(POZYX_NETWORK_ID, (uint8_t*)&source_id, 2);
-  if (String(source_id,HEX) == "6867"){ //This is car1 sender
-    car_ids[0] = 0x6802; //so only range car0 receiver
-    /* car_ids[1] = 0x6827; //and car2 reciever */
-  }
-  else if (String(source_id,HEX) == "685b"){ //This is car2 sender
-    car_ids[0] = 0x6802; //so only range car0
-    car_ids[1] = 0x6806; //and car1
-  }
+    // read the network id of this device
+    /* Pozyx.setOperationMode(POZYX_ANCHOR_MODE); */
+    delay(1000);
+    Pozyx.regRead(POZYX_NETWORK_ID, (uint8_t*)&source_id, 2);
+
+    if (String(source_id,HEX) == "6867") //This is car1 sender
+    {
+        car_ids[0] = 0x6802; //so only range car0 receiver
+        /* car_ids[1] = 0x6827; //and car2 reciever */
+    }
+    else if (String(source_id,HEX) == "685b") //This is car2 sender
+    {
+         //car_ids[0] = 0x6802; //so only range car0
+        car_ids[0] = 0x6806; //and car1
+    }
 }
 
 void discover()
@@ -69,7 +80,7 @@ void discover()
             Pozyx.getDeviceIds(devices, n_devs);
             for (int i = 0; i < n_devs; i++)
             {
-                Serial.println(String(devices[i], HEX));
+                //Serial.println(String(devices[i], HEX));
             }
         }
     }
@@ -82,16 +93,32 @@ void loop()
 {
     /* discover(); */
     send_message();
+    if (gps.available( gpsPort )) {
+        send_message();
+    }
 }
 
-void send_message() {
+void send_message()
+{
+    bool got_fix = false;
     int car_data_size = sizeof(dq_range);
-    size_t total_car_data = sizeof(dq_header) + num_cars * car_data_size;
-    uint8_t buffer[total_car_data];
-    dq_header header = {0, num_cars};
+    int cars_ranged = 0;
+    size_t max_cars = 20;
+    size_t max_msg_size = sizeof(uint8_t) + max_cars * sizeof(sensor_type)
+        + max_cars * sizeof(dq_range) + sizeof(dq_gps) + sizeof(dq_control);
+    size_t total_car_data = sizeof(dq_header) + num_cars * car_data_size + sizeof(dq_gps);
+    uint8_t buffer[max_msg_size];
+    uint8_t msg[max_msg_size - sizeof(uint8_t) - max_cars * sizeof(sensor_type)];
+    sensor_type meas_types[max_cars * sizeof(sensor_type)];
+    uint8_t *cur = msg;
+    size_t msg_size = 0;
+    uint8_t meas_counter = 0;
 
+    fix = gps.read();
+    //sensor_type sensor = RANGE;
+    //dq_header header = {1, {GPS,RANGE}};
     // writes message header
-    memcpy(buffer, &header, sizeof(dq_header));
+    //memcpy(buffer, &header, sizeof(dq_header));
 
     for (int i = 0; i < num_cars; i++) {
         if (String(source_id,HEX) != String(car_ids[i],HEX)) {
@@ -103,10 +130,11 @@ void send_message() {
                     if (range.distance > 0)
                     {
                         dq_range rng = {car_ids[i], range.distance};
-                        /* dq_range rng = {31, range.distance}; */
-                        memcpy(buffer + i * car_data_size + sizeof(dq_header),
-                            &rng, sizeof(dq_range));
-                        Serial.println(rng.dist);
+                        memcpy(cur, &rng, sizeof(dq_range));
+                        cur += sizeof(dq_range);
+                        msg_size += sizeof(dq_range);
+                        cars_ranged += 1;
+                        meas_types[meas_counter++] = RANGE;
                         break;
                     }
                 }
@@ -114,7 +142,43 @@ void send_message() {
         }
     }
 
-    status = Pozyx.writeTXBufferData(buffer, total_car_data);
+    if (fix.valid.location)
+    {
+        unsigned char gps_status = fix.status - 2;
+        float lat = fix.latitude();
+        float lon = fix.longitude();
+        float alt = fix.altitude();
+        dq_gps nmea = {gps_status,lat,lon,alt};
+        got_fix = true;
+        memcpy(cur, &nmea, sizeof(dq_gps));
+        cur += sizeof(dq_gps);
+        msg_size += sizeof(dq_gps);
+        meas_types[meas_counter++] = GPS;
+        //memcpy(buffer + sizeof(dq_header) + cars_ranged * car_data_size, &nmea, sizeof(dq_gps));
+    }
+    Serial.println(meas_counter);
+    memcpy(buffer, &meas_counter, sizeof(uint8_t));
+    memcpy(buffer + sizeof(uint8_t), meas_types,
+        sizeof(sensor_type) * meas_counter);
+    memcpy(buffer + sizeof(sensor_type) * meas_counter + sizeof(uint8_t),
+        msg, msg_size);
+    Pozyx.writeTXBufferData(buffer, sizeof(uint8_t) + sizeof(sensor_type) * meas_counter + msg_size);
+
+    //memcpy(&buffer[0], &header, sizeof(dq_header));
+    //Serial.println(header.sensor_type);
+
+    /*
+    if (got_fix)
+    {
+        status = Pozyx.writeTXBufferData(buffer, total_car_data);
+    }
+    else
+    {
+        status = Pozyx.writeTXBufferData(buffer, total_car_data - sizeof(dq_gps));
+    }
+
+    */
+
     // broadcast the contents of the TX buffer
     status = Pozyx.sendTXBufferData(chat_id);
     delay(1);

@@ -48,29 +48,48 @@ void loop(){
 
 void parse_data(uint8_t *data)
 {
-    dq_header header;
-    memcpy(&header, data, sizeof(dq_header));
+    uint8_t *cur = data;
+    //dq_header header;
+    uint8_t num_meas;
+    memcpy(&num_meas, cur, sizeof(uint8_t));
+    cur += sizeof(uint8_t);
 
-    // if range data
-    if (header.sensor_type == 0)
+    sensor_type meas_types[num_meas];
+    memcpy(meas_types, cur, num_meas * sizeof(sensor_type));
+    cur += sizeof(num_meas * sizeof(sensor_type));
+
+    for (size_t i = 0; i < num_meas; i++)
     {
-        dq_range rng;
-        /* Serial.println(header.num_data); */
-        for (int i = 0; i < header.num_data; i++)
+        // if range data
+        switch (meas_types[i])
         {
-            memcpy(&rng, data + sizeof(dq_header) + i * sizeof(dq_range),
-                sizeof(dq_range));
-            /* meas.header.frame_id = rng.id; */
-            /* String(rng.id, HEX).toCharArray(meas.header.frame_id, sizeof(uint16_t)); */
-            if (rng.dist > 0)
-            {
-                meas.control.steering_angle = rng.dist;
-                meas.header.stamp = nh.now();
-                /* Serial.println(rng.id); */
-                pub_meas.publish(&meas);
-            }
+            case RANGE:
+                dq_range rng;
+                memcpy(&rng, cur, sizeof(dq_range));
+                cur += sizeof(dq_range);
+                /* meas.header.frame_id = rng.id; */
+                /* String(rng.id, HEX).toCharArray(meas.header.frame_id, sizeof(uint16_t)); */
+                if (rng.dist > 0)
+                {
+                    meas.control.steering_angle = rng.dist;
+                    meas.header.stamp = nh.now();
+                    /* Serial.println(rng.id); */
+                    //pub_meas.publish(&meas);
+                }
+                break;
+            case GPS:
+                dq_gps nmea;
+                memcpy(&nmea, cur, sizeof(dq_gps));
+                cur += sizeof(dq_gps);
+                meas.gps.status.status = nmea.status;
+                meas.gps.latitude = nmea.lat;
+                meas.gps.longitude = nmea.lon;
+                meas.gps.altitude = nmea.alt;
+                //pub_meas.publish(&meas);
+                break;
         }
     }
+    pub_meas.publish(&meas);
 }
 
 void print_message() {
