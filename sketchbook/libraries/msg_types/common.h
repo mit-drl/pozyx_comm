@@ -1,7 +1,7 @@
 
 typedef struct dq_range_t {
     uint16_t id;
-    float dist;
+    uint32_t dist;
 } dq_range;
 
 typedef struct dq_header_t {

@@ -42,7 +42,7 @@ void setup(){
     //setup_uwb();
   // read the network id of this device
   /* Pozyx.setOperationMode(POZYX_ANCHOR_MODE); */
-  delay(1000);
+  /* delay(1000); */
   Pozyx.regRead(POZYX_NETWORK_ID, (uint8_t*)&source_id, 2);
   if (String(source_id,HEX) == "6867"){ //This is car1 sender
     car_ids[0] = 0x6802; //so only range car0 receiver
@@ -80,7 +80,7 @@ void discover()
 
 void loop()
 {
-    discover();
+    /* discover(); */
     send_message();
 }
 
@@ -91,7 +91,7 @@ void send_message() {
     dq_header header = {0, num_cars};
 
     // writes message header
-    memcpy(&buffer[0], &header, sizeof(dq_header));
+    memcpy(buffer, &header, sizeof(dq_header));
 
     for (int i = 0; i < num_cars; i++) {
         if (String(source_id,HEX) != String(car_ids[i],HEX)) {
@@ -100,15 +100,20 @@ void send_message() {
             while (status != POZYX_SUCCESS) {
                 status = Pozyx.doRanging(car_ids[i], &range);
                 if (status == POZYX_SUCCESS) {
-                    float dist = range.distance / 1000.0;
-                    dq_range rng = {car_ids[i], dist};
-                    memcpy(buffer + i * car_data_size + sizeof(dq_header),
-                        &rng, sizeof(dq_range));
-                    break;
+                    if (range.distance > 0)
+                    {
+                        dq_range rng = {car_ids[i], range.distance};
+                        /* dq_range rng = {31, range.distance}; */
+                        memcpy(buffer + i * car_data_size + sizeof(dq_header),
+                            &rng, sizeof(dq_range));
+                        Serial.println(rng.dist);
+                        break;
+                    }
                 }
             }
         }
     }
+
     status = Pozyx.writeTXBufferData(buffer, total_car_data);
     // broadcast the contents of the TX buffer
     status = Pozyx.sendTXBufferData(chat_id);

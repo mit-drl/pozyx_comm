@@ -51,20 +51,22 @@ void parse_data(uint8_t *data)
     dq_header header;
     memcpy(&header, data, sizeof(dq_header));
 
-    uint8_t *raw = data + sizeof(dq_header);
-
     // if range data
     if (header.sensor_type == 0)
     {
         dq_range rng;
+        /* Serial.println(header.num_data); */
         for (int i = 0; i < header.num_data; i++)
         {
-            memcpy(&rng, raw, sizeof(dq_range));
+            memcpy(&rng, data + sizeof(dq_header) + i * sizeof(dq_range),
+                sizeof(dq_range));
             /* meas.header.frame_id = rng.id; */
             /* String(rng.id, HEX).toCharArray(meas.header.frame_id, sizeof(uint16_t)); */
             if (rng.dist > 0)
             {
                 meas.control.steering_angle = rng.dist;
+                meas.header.stamp = nh.now();
+                /* Serial.println(rng.id); */
                 pub_meas.publish(&meas);
             }
         }
@@ -84,9 +86,13 @@ void print_message() {
     String your_id = String(messenger,HEX); //sender id
     // read the contents of the receive (RX) buffer, this is the msesage that was sent to this device
 
-    uint8_t data[length];
-    Pozyx.readRXBufferData(data, length);
-    parse_data(data);
+    if (length > 0)
+    {
+        uint8_t data[length];
+        Pozyx.readRXBufferData(data, length);
+        /* Serial.println(length); */
+        parse_data(data);
+    }
     /* String my_id = String(data).substring(0,4); //sender id */
     /* String meters = String(data).substring(5); //distance */
     //Did we receive data, and is it reasonable?
