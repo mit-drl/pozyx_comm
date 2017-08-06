@@ -2,15 +2,21 @@
 #include <Pozyx_definitions.h>
 #include <Wire.h>
 #include <ros.h>
-#include <sensor_msgs/Range.h>
+/* #include <sensor_msgs/Range.h> */
+#include <multi_car_msgs/GPS.h>
 #include <multi_car_msgs/CarMeasurement.h>
+#include <multi_car_msgs/UWBRange.h>
 #include <common.h>
 
 ros::NodeHandle  nh;
 /* sensor_msgs::Range range_msg; */
 multi_car_msgs::CarMeasurement meas;
-/* ros::Publisher pub_range( "range_data", &range_msg); */
+multi_car_msgs::UWBRange range;
+multi_car_msgs::GPS gps;
+
 ros::Publisher pub_meas("measurements", &meas);
+ros::Publisher pub_range("ranges", &range);
+ros::Publisher pub_gps("fixes", &gps);
 
 const char *car_ids[6] = {"6802","6835","6806","6867","6827","685b"}; //every car id (Receiver, Sender)
 const int num_ids = sizeof(car_ids)/2; //amount of total ids
@@ -28,28 +34,27 @@ void setup_uwb()
 }
 
 void setup(){
-  Serial.begin(57600);
-  nh.initNode();
-  nh.advertise(pub_meas);
-  // initialize Pozyx
-  if(! Pozyx.begin(false, MODE_INTERRUPT, POZYX_INT_MASK_RX_DATA, 0)){
-    Serial.println("ERROR: Unable to connect to POZYX shield");
-    Serial.println("Reset required");
-    abort();
-  }
-  Pozyx.setOperationMode(POZYX_TAG_MODE);
-  //setup_uwb();
-  //Serial.flush();
+    Serial.begin(57600);
+    nh.initNode();
+    /* nh.advertise(pub_meas); */
+    nh.advertise(pub_range);
+    nh.advertise(pub_gps);
+    // initialize Pozyx
+    if(!Pozyx.begin(false, MODE_INTERRUPT, POZYX_INT_MASK_RX_DATA, 0)){
+        Serial.println("ERROR: Unable to connect to POZYX shield");
+        Serial.println("Reset required");
+        abort();
+    }
+    //setup_uwb();
 }
 
 void loop(){
-  print_message();
+    publish_messages();
 }
 
-void parse_data(uint8_t *data)
+void parse_data(uint16_t sender_id, uint8_t *data)
 {
     uint8_t *cur = data;
-    //dq_header header;
     uint8_t num_meas;
     memcpy(&num_meas, cur, sizeof(uint8_t));
     cur += sizeof(uint8_t);
@@ -60,82 +65,58 @@ void parse_data(uint8_t *data)
 
     for (size_t i = 0; i < num_meas; i++)
     {
-        // if range data
         switch (meas_types[i])
         {
             case RANGE:
                 dq_range rng;
                 memcpy(&rng, cur, sizeof(dq_range));
                 cur += sizeof(dq_range);
-                /* meas.header.frame_id = rng.id; */
-                /* String(rng.id, HEX).toCharArray(meas.header.frame_id, sizeof(uint16_t)); */
+
                 if (rng.dist > 0)
                 {
-                    meas.control.steering_angle = rng.dist;
-                    meas.header.stamp = nh.now();
-                    /* Serial.println(rng.id); */
-                    //pub_meas.publish(&meas);
+                    range.distance = rng.dist;
+                    range.from_id = sender_id;
+                    range.to_id = rng.id;
+                    range.header.stamp = nh.now();
+                    pub_range.publish(&range);
                 }
                 break;
             case GPS:
                 dq_gps nmea;
                 memcpy(&nmea, cur, sizeof(dq_gps));
                 cur += sizeof(dq_gps);
-                meas.gps.status.status = nmea.status;
-                meas.gps.latitude = nmea.lat;
-                meas.gps.longitude = nmea.lon;
-                meas.gps.altitude = nmea.alt;
-                //pub_meas.publish(&meas);
+                gps.header.stamp = nh.now();
+                gps.car_id = sender_id;
+                gps.fix.header.stamp = nh.now();
+                gps.fix.header.frame_id = "world";
+                gps.fix.status.status = nmea.status;
+                gps.fix.latitude = nmea.lat;
+                gps.fix.longitude = nmea.lon;
+                gps.fix.altitude = nmea.alt;
+                pub_gps.publish(&gps);
                 break;
         }
     }
-    pub_meas.publish(&meas);
 }
 
-void print_message() {
-  if(Pozyx.waitForFlag(POZYX_INT_STATUS_RX_DATA,100)){ //wait up to 50ms for a message
-    // we have received a message!
-    // who sent the message?
-    uint16_t messenger = 0x00;
-    uint8_t length = 0;
-    delay(1);
-    Pozyx.getLastNetworkId(&messenger);
-    Pozyx.getLastDataLength(&length);
-    /* char data[length]; */
-    String your_id = String(messenger,HEX); //sender id
-    // read the contents of the receive (RX) buffer, this is the msesage that was sent to this device
-
-    if (length > 0)
+void publish_messages()
+{
+    if (Pozyx.waitForFlag(POZYX_INT_STATUS_RX_DATA, 100))
     {
-        uint8_t data[length];
-        Pozyx.readRXBufferData(data, length);
-        parse_data(data);
+        uint16_t sender_id = 0x00;
+        uint8_t length = 0;
+        delay(1);
+        Pozyx.getLastNetworkId(&sender_id);
+        Pozyx.getLastDataLength(&length);
+
+        if (length > 0)
+        {
+            uint8_t data[length];
+            Pozyx.readRXBufferData(data, length);
+            parse_data(sender_id, data);
+        }
     }
-    /* String my_id = String(data).substring(0,4); //sender id */
-    /* String meters = String(data).substring(5); //distance */
-    //Did we receive data, and is it reasonable?
-  /*   if (sizeof(data) > 0 and meters.toFloat() < 100){ */
-  /*     //What car are we? */
-  /*     //Serial.println("here"); */
-  /*     for (int a = 0;a < num_ids; a++) { */
-  /*       if (my_id == car_ids[a]) { */
-  /*         range_msg.header.frame_id = car_num[a]; */
-  /*       } */
-  /*       //what car are you? */
-  /*       else if (your_id == car_ids[a]) { */
-  /*         range_msg.field_of_view = String(car_num[a][3]).toFloat(); */
-  /*       } */
-  /*     } */
-  /*     //Zero meters is a misread */
-  /*     if (meters.toFloat() != 0) { */
-  /*       range_msg.range = meters.toFloat(); */
-  /*       pub_range.publish(&range_msg); */
-  /*       meas.gps.latitude = meters.toFloat(); */
-  /*       pub_meas.publish(&meas); */
-  /*     } */
-  /*   } */
-  /* } */
-  }
+
     nh.spinOnce();
 }
 

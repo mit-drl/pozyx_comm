@@ -136,15 +136,13 @@ void send_message()
         }
     }
 
-    if (true or fix.valid.location)
+    if (fix.valid.location)
     {
         unsigned char gps_status = fix.status - 2;
-        /*
         float lat = fix.latitude();
         float lon = fix.longitude();
         float alt = fix.altitude();
-        */
-        float lat = 45, lon = 45, alt = 3;
+        /* float lat = 45, lon = 45, alt = 3; */
         dq_gps nmea = {gps_status,lat,lon,alt};
         got_fix = true;
         memcpy(cur, &nmea, sizeof(dq_gps));
