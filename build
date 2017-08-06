@@ -36,9 +36,9 @@ ard_cmd = [arduino_loc, "--upload", "--board",
            "arduino:avr:mega:cpu=atmega2560", "--port", port,
            "--pref", "sketchbook.path=sketchbook"]
 
-if args.sender:
+if args.receiver:
     ard_cmd.append("sketchbook/pozyx_receiver_range/pozyx_receiver_range.ino")
-elif args.receiver:
+elif args.sender:
     ard_cmd.append("sketchbook/pozyx_sender_range/pozyx_sender_range.ino")
 
 if args.sender or args.receiver:
