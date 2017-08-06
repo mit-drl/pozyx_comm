@@ -1,0 +1,52 @@
+#!/usr/bin/python
+
+import argparse
+import subprocess
+import shutil
+
+
+parser = argparse.ArgumentParser(description="Uploads sender and receiver")
+parser.add_argument("--port", "-p", dest="port", type=str)
+parser.add_argument("--port-num", "-n", dest="port_num", type=str)
+parser.add_argument("--build-ros", "-b", dest="build_ros", action="store_true")
+parser.add_argument("--sender", "-s", dest="sender", action="store_true")
+parser.add_argument("--receiver", "-r", dest="receiver", action="store_true")
+parser.add_argument
+
+args = parser.parse_args()
+
+if args.build_ros:
+    try:
+        shutil.rmtree("sketchbook/libraries/ros_lib")
+    except OSError:
+        pass
+    br_cmd = ["rosrun", "rosserial_arduino", "make_libraries.py",
+              "sketchbook/libraries"]
+    subprocess.call(br_cmd)
+
+arduino_loc = "third_party/arduino-1.8.3/arduino"
+port = None
+
+if args.port:
+    port = args.port
+elif args.port_num:
+    port = "/dev/ttyACM{}".format(args.port_num)
+
+ard_cmd = [arduino_loc, "--upload", "--board",
+           "arduino:avr:mega", "--port", port]
+
+if args.sender:
+    ard_cmd.append("sketchbook/pozyx_receiver_range/pozyx_receiver_range.ino")
+elif args.receiver:
+    ard_cmd.append("sketchbook/pozyx_sender_range/pozyx_sender_range.ino")
+
+if args.sender or args.receiver:
+    if port:
+        subprocess.call(ard_cmd)
+    else:
+        parser.print_usage()
+        exit(1)
+
+if not (args.sender or args.receiver or args.build_ros):
+    parser.print_usage()
+    exit(1)
