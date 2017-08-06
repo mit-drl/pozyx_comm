@@ -56,7 +56,7 @@ void parse_data(uint8_t *data)
 
     sensor_type meas_types[num_meas];
     memcpy(meas_types, cur, num_meas * sizeof(sensor_type));
-    cur += sizeof(num_meas * sizeof(sensor_type));
+    cur += num_meas * sizeof(sensor_type);
 
     for (size_t i = 0; i < num_meas; i++)
     {
@@ -109,7 +109,6 @@ void print_message() {
     {
         uint8_t data[length];
         Pozyx.readRXBufferData(data, length);
-        /* Serial.println(length); */
         parse_data(data);
     }
     /* String my_id = String(data).substring(0,4); //sender id */

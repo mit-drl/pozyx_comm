@@ -123,31 +123,28 @@ void send_message()
     for (int i = 0; i < num_cars; i++) {
         if (String(source_id,HEX) != String(car_ids[i],HEX)) {
             device_range_t range;
-            status = 0;
-            while (status != POZYX_SUCCESS) {
-                status = Pozyx.doRanging(car_ids[i], &range);
-                if (status == POZYX_SUCCESS) {
-                    if (range.distance > 0)
-                    {
-                        dq_range rng = {car_ids[i], range.distance};
-                        memcpy(cur, &rng, sizeof(dq_range));
-                        cur += sizeof(dq_range);
-                        msg_size += sizeof(dq_range);
-                        cars_ranged += 1;
-                        meas_types[meas_counter++] = RANGE;
-                        break;
-                    }
-                }
+            status = Pozyx.doRanging(car_ids[i], &range);
+            if (status == POZYX_SUCCESS and range.distance > 0) {
+                dq_range rng = {car_ids[i], range.distance};
+                memcpy(cur, &rng, sizeof(dq_range));
+                cur += sizeof(dq_range);
+                msg_size += sizeof(dq_range);
+                cars_ranged += 1;
+                meas_types[meas_counter++] = RANGE;
+                break;
             }
         }
     }
 
-    if (fix.valid.location)
+    if (true or fix.valid.location)
     {
         unsigned char gps_status = fix.status - 2;
+        /*
         float lat = fix.latitude();
         float lon = fix.longitude();
         float alt = fix.altitude();
+        */
+        float lat = 45, lon = 45, alt = 3;
         dq_gps nmea = {gps_status,lat,lon,alt};
         got_fix = true;
         memcpy(cur, &nmea, sizeof(dq_gps));
@@ -156,13 +153,14 @@ void send_message()
         meas_types[meas_counter++] = GPS;
         //memcpy(buffer + sizeof(dq_header) + cars_ranged * car_data_size, &nmea, sizeof(dq_gps));
     }
-    Serial.println(meas_counter);
+    //Serial.println(meas_counter);
     memcpy(buffer, &meas_counter, sizeof(uint8_t));
     memcpy(buffer + sizeof(uint8_t), meas_types,
         sizeof(sensor_type) * meas_counter);
     memcpy(buffer + sizeof(sensor_type) * meas_counter + sizeof(uint8_t),
         msg, msg_size);
     Pozyx.writeTXBufferData(buffer, sizeof(uint8_t) + sizeof(sensor_type) * meas_counter + msg_size);
+    Serial.println(sizeof(uint8_t) + sizeof(sensor_type) * meas_counter + msg_size);
 
     //memcpy(&buffer[0], &header, sizeof(dq_header));
     //Serial.println(header.sensor_type);
