@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>pozyx_node</name>
+  <name>pozyx_comm</name>
   <version>0.0.0</version>
   <description>The pozyx_node package</description>
 
