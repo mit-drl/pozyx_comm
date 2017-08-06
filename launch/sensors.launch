@@ -1,15 +1,17 @@
 <launch>
 
     <arg name="baud" default="57600"/>
-    <arg name="receiver_port" default="/dev/ttyACM0"/>
-    <arg name="sender_port" default="/dev/ttyACM1"/>
+    <arg name="receiver_port" default="/dev/serial/by-path/pci-0000:00:14.0-usb-0:1:1.0"/>
+    <arg name="sender_port" default="/dev/serial/by-path/pci-0000:00:14.0-usb-0:2:1.0"/>
 
-    <node name="pozyx_receiver" pkg="rosserial_python" type="serial_node.py">
+    <node name="pozyx_receiver" pkg="rosserial_python" type="serial_node.py"
+		output="screen" required="true">
         <param name="baud" value="$(arg baud)"/>
         <param name="port" value="$(arg receiver_port)"/>
     </node>
 
-    <node name="pozyx_sender" pkg="rosserial_python" type="serial_node.py">
+    <node name="pozyx_sender" pkg="rosserial_python" type="serial_node.py"
+		output="screen" required="true">
         <param name="baud" value="$(arg baud)"/>
         <param name="port" value="$(arg sender_port)"/>
     </node>
