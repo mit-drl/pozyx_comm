@@ -33,8 +33,8 @@ elif args.port_num:
     port = "/dev/ttyACM{}".format(args.port_num)
 
 ard_cmd = [arduino_loc, "--upload", "--board",
-           "arduino:avr:mega", "--port", port,
-           "--pref", "custom_cpu=mega_atmega2560"]
+           "arduino:avr:mega:cpu=atmega2560", "--port", port,
+           "--pref", "sketchbook.path=sketchbook"]
 
 if args.sender:
     ard_cmd.append("sketchbook/pozyx_receiver_range/pozyx_receiver_range.ino")
