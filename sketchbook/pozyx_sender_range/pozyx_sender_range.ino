@@ -7,6 +7,7 @@
 #include <Time.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Twist.h>
+#include <geometry_msgs/Pose.h>
 #include <nav_msgs/Odometry.h>
 #include <multi_car_msgs/CarControl.h>
 #include <multi_car_msgs/ConsensusMsg.h>
@@ -33,7 +34,7 @@ sensor_msgs::NavSatFix gps_msg;
 ros::Publisher pub_gps("fix", &gps_msg);
 
 geometry_msgs::Twist control;
-nav_msgs::Odometry odom;
+geometry_msgs::Pose odom;
 multi_car_msgs::ConsensusMsg consensus;
 bool new_control = false, new_consensus = false, new_odom = false;
 
@@ -43,7 +44,7 @@ void car_control_cb(const geometry_msgs::Twist msg)
     new_control = true;
 }
 
-void car_odom_cb(const nav_msgs::Odometry &msg)
+void car_odom_cb(const geometry_msgs::Pose &msg)
 {
     odom = msg;
     new_odom = true;
@@ -58,8 +59,8 @@ void consensus_cb(const multi_car_msgs::ConsensusMsg &msg)
 ros::Subscriber<geometry_msgs::Twist>
 car_control_sub("/cmd_vel_mux/input/teleop", &car_control_cb);
 
-ros::Subscriber<nav_msgs::Odometry>
-car_odom_sub("odom", &car_odom_cb);
+ros::Subscriber<geometry_msgs::Pose>
+car_odom_sub("/odom/pose/pose", &car_odom_cb);
 
 ros::Subscriber<multi_car_msgs::ConsensusMsg>
 consensus_sub("consensus", &consensus_cb);
@@ -81,6 +82,9 @@ void setup()
     gpsPort.begin(4800);
     nh.initNode();
     nh.advertise(pub_gps);
+    nh.subscribe(car_control_sub);
+    nh.subscribe(car_odom_sub);
+    nh.subscribe(consensus_sub);
 
     // initialize Pozyx
     if(Pozyx.begin() == POZYX_FAILURE)
@@ -202,17 +206,17 @@ void send_message()
         pub_gps.publish(&gps_msg);
     }
 
-    if (new_control and new_control)
+    if (new_control)
     {
         dq_control con = {
             control.angular.z,
             control.linear.x,
-            odom.pose.pose.position.x,
-            odom.pose.pose.position.y,
-            odom.pose.pose.orientation.x,
-            odom.pose.pose.orientation.y,
-            odom.pose.pose.orientation.z,
-            odom.pose.pose.orientation.w,
+            odom.position.x,
+odom.position.y,
+odom.orientation.x,
+odom.orientation.y,
+odom.orientation.z,
+odom.orientation.w
         };
         memcpy(cur, &con, sizeof(dq_control));
         cur += sizeof(dq_control);
