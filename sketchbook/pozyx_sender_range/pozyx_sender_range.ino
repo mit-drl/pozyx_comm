@@ -35,7 +35,7 @@ void setup_uwb()
 void setup()
 {
     Serial.begin(57600);
-    gpsPort.begin(4800);
+    gpsPort.begin(9600);
 
     // initialize Pozyx
     if(Pozyx.begin() == POZYX_FAILURE)
