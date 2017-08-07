@@ -212,11 +212,11 @@ void send_message()
             control.angular.z,
             control.linear.x,
             odom.position.x,
-odom.position.y,
-odom.orientation.x,
-odom.orientation.y,
-odom.orientation.z,
-odom.orientation.w
+            odom.position.y,
+            odom.orientation.x,
+            odom.orientation.y,
+            odom.orientation.z,
+            odom.orientation.w
         };
         memcpy(cur, &con, sizeof(dq_control));
         cur += sizeof(dq_control);
