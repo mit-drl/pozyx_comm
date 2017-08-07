@@ -4,6 +4,7 @@
 #include <common.h>
 #include <NMEAGPS.h>
 #include <Time.h>
+#include <sensor_msgs/NavSatFix.h>
 
 //GPSBAUD 4800
 #define gpsPort Serial1
@@ -22,6 +23,8 @@ uint8_t ranging_protocol = POZYX_RANGE_PROTOCOL_PRECISION; // ranging protocol o
 const int num_cars = 1; //Amount of other cars
 /* uint16_t car_ids[num_cars] = {0x6806,0x6827}; //Default is car0 sender so only range car1,car2 receivers */
 uint16_t car_ids[num_cars] = {0x6806}; //Default is car0 sender so only range car1,car2 receivers
+
+ros::NodeHandle nh;
 
 void setup_uwb()
 {
@@ -113,12 +116,7 @@ void send_message()
     uint8_t *cur = msg;
     size_t msg_size = 0;
     uint8_t meas_counter = 0;
-
     fix = gps.read();
-    //sensor_type sensor = RANGE;
-    //dq_header header = {1, {GPS,RANGE}};
-    // writes message header
-    //memcpy(buffer, &header, sizeof(dq_header));
 
     for (int i = 0; i < num_cars; i++) {
         if (String(source_id,HEX) != String(car_ids[i],HEX)) {
@@ -142,14 +140,12 @@ void send_message()
         float lat = fix.latitude();
         float lon = fix.longitude();
         float alt = fix.altitude();
-        /* float lat = 45, lon = 45, alt = 3; */
         dq_gps nmea = {gps_status,lat,lon,alt};
         got_fix = true;
         memcpy(cur, &nmea, sizeof(dq_gps));
         cur += sizeof(dq_gps);
         msg_size += sizeof(dq_gps);
         meas_types[meas_counter++] = GPS;
-        //memcpy(buffer + sizeof(dq_header) + cars_ranged * car_data_size, &nmea, sizeof(dq_gps));
     }
     //Serial.println(meas_counter);
     memcpy(buffer, &meas_counter, sizeof(uint8_t));
@@ -158,24 +154,6 @@ void send_message()
     memcpy(buffer + sizeof(sensor_type) * meas_counter + sizeof(uint8_t),
         msg, msg_size);
     Pozyx.writeTXBufferData(buffer, sizeof(uint8_t) + sizeof(sensor_type) * meas_counter + msg_size);
-    Serial.println(sizeof(uint8_t) + sizeof(sensor_type) * meas_counter + msg_size);
-
-    //memcpy(&buffer[0], &header, sizeof(dq_header));
-    //Serial.println(header.sensor_type);
-
-    /*
-    if (got_fix)
-    {
-        status = Pozyx.writeTXBufferData(buffer, total_car_data);
-    }
-    else
-    {
-        status = Pozyx.writeTXBufferData(buffer, total_car_data - sizeof(dq_gps));
-    }
-
-    */
-
-    // broadcast the contents of the TX buffer
     status = Pozyx.sendTXBufferData(chat_id);
     delay(1);
 }
