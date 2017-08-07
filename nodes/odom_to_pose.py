@@ -15,5 +15,5 @@ def odom_cb(odom):
 if __name__ == "__main__":
     rospy.init_node("odom_to_pose", anonymous=False)
     pub = rospy.Publisher("pose", Pose)
-    sub = rospy.Subscriber("odom", odom_cb, Odometry)
+    sub = rospy.Subscriber("odom", Odometry, odom_cb)
     rospy.spin()
