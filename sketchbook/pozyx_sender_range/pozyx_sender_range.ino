@@ -60,7 +60,7 @@ ros::Subscriber<geometry_msgs::Twist>
 car_control_sub("/cmd_vel_mux/input/teleop", &car_control_cb);
 
 ros::Subscriber<geometry_msgs::Pose>
-car_odom_sub("/odom/pose/pose", &car_odom_cb);
+car_odom_sub("/pose", &car_odom_cb);
 
 ros::Subscriber<multi_car_msgs::ConsensusMsg>
 consensus_sub("consensus", &consensus_cb);
