@@ -77,7 +77,8 @@ void setup_uwb()
 void setup()
 {
     Serial.begin(57600);
-    gpsPort.begin(9600);
+    /* gpsPort.begin(9600); */
+    gpsPort.begin(4800);
     nh.initNode();
     nh.advertise(pub_gps);
 
