@@ -26,6 +26,7 @@ if args.build_ros:
 
 arduino_loc = "third_party/arduino-1.8.3/arduino"
 port = None
+default_port = None
 
 if args.port:
     port = args.port
@@ -34,15 +35,20 @@ elif args.port_num:
 
 ard_cmd = [arduino_loc, "--upload", "--board",
            "arduino:avr:mega:cpu=atmega2560", "--port", port,
-           "--pref", "sketchbook.path=sketchbook"]
+           "--pref", "sketchbook.path=sketchbook", "--save-prefs"]
 
 if args.receiver:
     ard_cmd.append("sketchbook/pozyx_receiver_range/pozyx_receiver_range.ino")
+    default_port = "/dev/serial/by-path/pci-0000:00:14.0-usb-0:1:1.0"
 elif args.sender:
     ard_cmd.append("sketchbook/pozyx_sender_range/pozyx_sender_range.ino")
+    default_port = "/dev/serial/by-path/pci-0000:00:14.0-usb-0:2:1.0"
 
 if args.sender or args.receiver:
     if port:
+        subprocess.call(ard_cmd)
+    elif default_port:
+        ard_cmd[5] = default_port
         subprocess.call(ard_cmd)
     else:
         parser.print_usage()

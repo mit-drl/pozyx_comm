@@ -1,15 +1,13 @@
+#include <ros.h>
 #include <Pozyx.h>
 #include <Pozyx_definitions.h>
 #include <Wire.h>
-#include <ros.h>
-/* #include <sensor_msgs/Range.h> */
 #include <multi_car_msgs/GPS.h>
 #include <multi_car_msgs/CarMeasurement.h>
 #include <multi_car_msgs/UWBRange.h>
 #include <common.h>
 
 ros::NodeHandle  nh;
-/* sensor_msgs::Range range_msg; */
 multi_car_msgs::CarMeasurement meas;
 multi_car_msgs::UWBRange range;
 multi_car_msgs::GPS gps;
@@ -17,12 +15,6 @@ multi_car_msgs::GPS gps;
 ros::Publisher pub_meas("measurements", &meas);
 ros::Publisher pub_range("ranges", &range);
 ros::Publisher pub_gps("fixes", &gps);
-
-const char *car_ids[6] = {"6802","6835","6806","6867","6827","685b"}; //every car id (Receiver, Sender)
-const int num_ids = sizeof(car_ids)/2; //amount of total ids
-const char *car_num[num_ids] = {"car0","car0","car1","car1","car2","car2"}; //assign car number to each id
-int repeat[] = {0,1};
-String my_id;
 
 void setup_uwb()
 {
@@ -50,6 +42,7 @@ void setup(){
 
 void loop(){
     publish_messages();
+    nh.spinOnce();
 }
 
 void parse_data(uint16_t sender_id, uint8_t *data)
@@ -74,7 +67,7 @@ void parse_data(uint16_t sender_id, uint8_t *data)
 
                 if (rng.dist > 0)
                 {
-                    range.distance = rng.dist;
+                    range.distance = rng.dist / 1000.0;
                     range.from_id = sender_id;
                     range.to_id = rng.id;
                     range.header.stamp = nh.now();
@@ -116,7 +109,4 @@ void publish_messages()
             parse_data(sender_id, data);
         }
     }
-
-    nh.spinOnce();
 }
-

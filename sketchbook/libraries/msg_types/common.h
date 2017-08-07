@@ -1,7 +1,6 @@
 
 typedef enum sensor_type_t {
-	RANGE,
-	GPS
+	RANGE, GPS, CONTROL, CONSENSUS
 } sensor_type;
 
 typedef struct dq_range_t {
@@ -25,3 +24,9 @@ typedef struct dq_gps_t {
     float lon;
     float alt;
 } dq_gps;
+
+typedef struct dq_consensus_t {
+    uint16_t id;
+    float confidence;
+    float state;
+} dq_consensus;
