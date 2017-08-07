@@ -10,7 +10,7 @@
 ros::NodeHandle  nh;
 multi_car_msgs::UWBRange range;
 multi_car_msgs::GPS gps;
-multi_car_msgs::CarControl controls;
+multi_car_msgs::CarControl control;
 
 ros::Publisher pub_range("ranges", &range);
 ros::Publisher pub_gps("fixes", &gps);
@@ -108,7 +108,7 @@ void parse_data(uint16_t sender_id, uint8_t *data)
                 control.pose.pose.orientation.w = con.qw;
                 control.steering_angle = con.steering_angle;
                 control.velocity = con.velocity;
-                pub_control.publish(control);
+                pub_control.publish(&control);
                 break;
         }
     }
