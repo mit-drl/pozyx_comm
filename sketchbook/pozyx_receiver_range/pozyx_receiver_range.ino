@@ -2,19 +2,19 @@
 #include <Pozyx.h>
 #include <Pozyx_definitions.h>
 #include <Wire.h>
+#include <multi_car_msgs/CarControl.h>
 #include <multi_car_msgs/GPS.h>
-#include <multi_car_msgs/CarMeasurement.h>
 #include <multi_car_msgs/UWBRange.h>
 #include <common.h>
 
 ros::NodeHandle  nh;
-multi_car_msgs::CarMeasurement meas;
 multi_car_msgs::UWBRange range;
 multi_car_msgs::GPS gps;
+multi_car_msgs::CarControl controls;
 
-ros::Publisher pub_meas("measurements", &meas);
 ros::Publisher pub_range("ranges", &range);
 ros::Publisher pub_gps("fixes", &gps);
+ros::Publisher pub_control("controls", &control);
 
 void setup_uwb()
 {
@@ -28,9 +28,10 @@ void setup_uwb()
 void setup(){
     Serial.begin(57600);
     nh.initNode();
-    /* nh.advertise(pub_meas); */
     nh.advertise(pub_range);
     nh.advertise(pub_gps);
+    nh.advertise(pub_control);
+
     // initialize Pozyx
     if(!Pozyx.begin(false, MODE_INTERRUPT, POZYX_INT_MASK_RX_DATA, 0)){
         Serial.println("ERROR: Unable to connect to POZYX shield");
@@ -87,6 +88,27 @@ void parse_data(uint16_t sender_id, uint8_t *data)
                 gps.fix.longitude = nmea.lon;
                 gps.fix.altitude = nmea.alt;
                 pub_gps.publish(&gps);
+                break;
+            case CONTROL:
+                dq_control con;
+                memcpy(&con, cur, sizeof(dq_control));
+                cur += sizeof(dq_control);
+                control.header.stamp = nh.now();
+                control.car_id = sender_id;
+                control.pose.header.stamp = nh.now();
+                String frame_id = String(sender_id, HEX) + String("/map");
+                char frame_id_chars[frame_id.length()];
+                frame_id.toCharArray(frame_id_chars, frame_id.length());
+                control.pose.header.frame_id = frame_id_chars;
+                control.pose.pose.position.x = con.x;
+                control.pose.pose.position.y = con.y;
+                control.pose.pose.orientation.x = con.qx;
+                control.pose.pose.orientation.y = con.qy;
+                control.pose.pose.orientation.z = con.qz;
+                control.pose.pose.orientation.w = con.qw;
+                control.steering_angle = con.steering_angle;
+                control.velocity = con.velocity;
+                pub_control.publish(control);
                 break;
         }
     }

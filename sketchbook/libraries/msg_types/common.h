@@ -11,6 +11,12 @@ typedef struct dq_range_t {
 typedef struct dq_control_t {
     float steering_angle;
     float velocity;
+    float x;
+    float y;
+    float qx;
+    float qy;
+    float qz;
+    float qw;
 } dq_control;
 
 typedef struct dq_header_t {

@@ -7,6 +7,7 @@
 #include <Time.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Twist.h>
+#include <nav_msgs/Odometry.h>
 #include <multi_car_msgs/CarControl.h>
 #include <multi_car_msgs/ConsensusMsg.h>
 
@@ -32,13 +33,20 @@ sensor_msgs::NavSatFix gps_msg;
 ros::Publisher pub_gps("fix", &gps_msg);
 
 geometry_msgs::Twist control;
+nav_msgs::Odometry odom;
 multi_car_msgs::ConsensusMsg consensus;
-bool new_control = false, new_consensus = false;
+bool new_control = false, new_consensus = false, new_odom = false;
 
 void car_control_cb(const geometry_msgs::Twist msg)
 {
     control = msg;
     new_control = true;
+}
+
+void car_odom_cb(const nav_msgs::Odometry &msg)
+{
+    odom = msg;
+    new_odom = true;
 }
 
 void consensus_cb(const multi_car_msgs::ConsensusMsg &msg)
@@ -49,6 +57,9 @@ void consensus_cb(const multi_car_msgs::ConsensusMsg &msg)
 
 ros::Subscriber<geometry_msgs::Twist>
 car_control_sub("cmd_vel", &car_control_cb);
+
+ros::Subscriber<nav_msgs::Odometry>
+car_odom_sub("odom", &car_odom_cb);
 
 ros::Subscriber<multi_car_msgs::ConsensusMsg>
 consensus_sub("consensus", &consensus_cb);
@@ -190,13 +201,24 @@ void send_message()
         pub_gps.publish(&gps_msg);
     }
 
-    if (new_control)
+    if (new_control and new_control)
     {
-        dq_control con = {control.angular.z, control.linear.x};
+        dq_control con = {
+            control.angular.z,
+            control.linear.x,
+            odom.pose.pose.position.x,
+            odom.pose.pose.position.y,
+            odom.pose.pose.orientation.x,
+            odom.pose.pose.orientation.y,
+            odom.pose.pose.orientation.z,
+            odom.pose.pose.orientation.w,
+        };
         memcpy(cur, &con, sizeof(dq_control));
         cur += sizeof(dq_control);
         msg_size += sizeof(dq_control);
         meas_types[meas_counter++] = CONTROL;
+        new_control = false;
+        new_odom = false;
     }
 
     if (new_consensus)
