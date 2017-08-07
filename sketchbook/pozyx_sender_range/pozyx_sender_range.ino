@@ -56,7 +56,7 @@ void consensus_cb(const multi_car_msgs::ConsensusMsg &msg)
 }
 
 ros::Subscriber<geometry_msgs::Twist>
-car_control_sub("cmd_vel", &car_control_cb);
+car_control_sub("/cmd_vel_mux/input/teleop", &car_control_cb);
 
 ros::Subscriber<nav_msgs::Odometry>
 car_odom_sub("odom", &car_odom_cb);
