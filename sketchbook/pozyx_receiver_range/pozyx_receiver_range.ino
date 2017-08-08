@@ -96,9 +96,9 @@ void parse_data(uint16_t sender_id, uint8_t *data)
                 control.header.stamp = nh.now();
                 control.car_id = sender_id;
                 control.pose.header.stamp = nh.now();
-                String frame_id = String(sender_id, HEX) + String("/map");
+                String frame_id = String(sender_id, HEX) + String("/odom");
                 char frame_id_chars[frame_id.length()];
-                frame_id.toCharArray(frame_id_chars, frame_id.length());
+                frame_id.toCharArray(frame_id_chars, frame_id.length() + 1);
                 control.pose.header.frame_id = frame_id_chars;
                 control.pose.pose.position.x = con.x;
                 control.pose.pose.position.y = con.y;
