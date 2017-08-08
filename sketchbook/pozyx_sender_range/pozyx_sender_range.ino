@@ -3,7 +3,9 @@
 #include <Pozyx_definitions.h>
 #include <Wire.h>
 #include <common.h>
-#include <NMEAGPS.h>
+//#include <NMEAGPS.h>
+#include <Adafruit_GPS.h>
+#include <AltSoftSerial.h>
 #include <Time.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Twist.h>
@@ -13,10 +15,13 @@
 #include <multi_car_msgs/ConsensusMsg.h>
 
 //GPSBAUD 4800
-#define gpsPort Serial1
-
-NMEAGPS  gps; // This parses the GPS characters
-gps_fix  fix; // This holds on to the latest values
+//#define gpsPort Serial1
+AltSoftSerial mySerial;
+Adafruit_GPS gpsPort(&mySerial);
+boolean usingInterrupt = false;
+void useInterrupt(boolean); // Func prototype keeps Arduino 0023 happy
+//NMEAGPS  gps; // This parses the GPS characters
+//gps_fix  fix; // This holds on to the latest values
 
 uint16_t source_id;                 // the network id of this device
 uint16_t chat_id = 0;             //Broadcast the message
@@ -79,13 +84,24 @@ void setup()
 {
     Serial.begin(57600);
     /* gpsPort.begin(9600); */
-    gpsPort.begin(4800);
+    
     nh.initNode();
     nh.advertise(pub_gps);
     nh.subscribe(car_control_sub);
     nh.subscribe(car_odom_sub);
     nh.subscribe(consensus_sub);
 
+    gpsPort.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+    gpsPort.sendCommand(PMTK_API_SET_FIX_CTL_5HZ);
+    gpsPort.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ);
+    gpsPort.sendCommand(PGCMD_ANTENNA);
+    gpsPort.sendCommand(PMTK_SET_BAUD_57600);
+    delay(1000);
+    gpsPort.begin(57600);
+    delay(1000);
+    useInterrupt(true);
+    delay(500);
+    
     // initialize Pozyx
     if(Pozyx.begin() == POZYX_FAILURE)
     {
@@ -107,6 +123,26 @@ void setup()
          //car_ids[0] = 0x6802; //so only range car0
         car_ids[0] = 0x6806; //and car1
     }
+}
+
+// Interrupt is called once a millisecond, looks for any new GPS data, and stores it
+SIGNAL(TIMER0_COMPA_vect) {
+  char c = gpsPort.read();
+  // if you want to debug, this is a good time to do it!
+}
+
+void useInterrupt(boolean v) {
+  if (v) {
+    // Timer0 is already used for millis() - we'll just interrupt somewhere
+    // in the middle and call the "Compare A" function above
+    OCR0A = 0xAF;
+    TIMSK0 |= _BV(OCIE0A);
+    usingInterrupt = true;
+  } else {
+    // do not call the interrupt function COMPA anymore
+    TIMSK0 &= ~_BV(OCIE0A);
+    usingInterrupt = false;
+  }
 }
 
 void discover()
@@ -133,6 +169,7 @@ void discover()
     }
 }
 
+uint32_t timer = millis();
 void loop()
 {
     /* discover(); */
@@ -169,7 +206,7 @@ void send_message()
     uint8_t *cur = msg;
     size_t msg_size = 0;
     uint8_t meas_counter = 0;
-    fix = gps.read();
+    char c = gpsPort.read();
 
     for (int i = 0; i < num_cars; i++) {
         if (String(source_id,HEX) != String(car_ids[i],HEX)) {
@@ -185,8 +222,32 @@ void send_message()
             }
         }
     }
+    
+    if (millis() - timer > 100) 
+    { 
+        timer = millis(); // reset the timer  
+//    Serial.print("Fix: "); Serial.print((int)GPS.fix);
+//    Serial.print(" quality: "); Serial.println((int)GPS.fixquality); 
+        unsigned char gps_status = gpsPort.fixquality;
+        float lat = gpsPort.latitudeDegrees;
+        float lon = gpsPort.longitudeDegrees;
+        float alt = gpsPort.altitude;
+        dq_gps nmea = {gps_status,lat,lon,alt};
+        memcpy(cur, &nmea, sizeof(dq_gps));
+        cur += sizeof(dq_gps);
+        msg_size += sizeof(dq_gps);
+        meas_types[meas_counter++] = GPS;
+        gps_msg.header.stamp = nh.now();
+        gps_msg.header.frame_id = "world";
+        gps_msg.status.status = gps_status;
+        gps_msg.latitude = lat;
+        gps_msg.longitude = lon;
+        gps_msg.altitude = alt;
+        pub_gps.publish(&gps_msg);   
+//    Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
+    }
 
-    if (fix.valid.location)
+    /*if (fix.valid.location)
     {
         unsigned char gps_status = fix.status - 2;
         float lat = fix.latitude();
@@ -204,7 +265,7 @@ void send_message()
         gps_msg.longitude = lon;
         gps_msg.altitude = alt;
         pub_gps.publish(&gps_msg);
-    }
+    }*/
 
     if (new_control)
     {
