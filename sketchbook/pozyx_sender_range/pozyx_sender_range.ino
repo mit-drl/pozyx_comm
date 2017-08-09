@@ -3,7 +3,6 @@
 #include <Pozyx_definitions.h>
 #include <Wire.h>
 #include <common.h>
-//#include <NMEAGPS.h>
 #include <Adafruit_GPS.h>
 #include <AltSoftSerial.h>
 //#include <Time.h>
@@ -14,15 +13,12 @@
 #include <multi_car_msgs/CarControl.h>
 #include <multi_car_msgs/ConsensusMsg.h>
 
-//GPSBAUD 4800
 //#define gpsPort Serial1
 AltSoftSerial mySerial;
 Adafruit_GPS gpsPort(&mySerial);
-bool got_fix;
+//bool got_fix;
 boolean usingInterrupt = false;
 void useInterrupt(boolean); // Func prototype keeps Arduino 0023 happy
-//NMEAGPS  gps; // This parses the GPS characters
-//gps_fix  fix; // This holds on to the latest values
 
 uint16_t source_id;                 // the network id of this device
 uint16_t chat_id = 0;             //Broadcast the message
@@ -32,7 +28,7 @@ const int offset = -5;  // Eastern Standard Time (USA)
 
 uint8_t ranging_protocol = POZYX_RANGE_PROTOCOL_PRECISION; // ranging protocol of the Pozyx.
 const int num_cars = 1; //Amount of other cars
-uint16_t car_ids[num_cars] = {0x6806}; //Default is car0 sender so only range car1,car2 receivers
+uint16_t car_ids[num_cars] = {0x6827}; //Default is car0 sender so only range car1,car2 receivers
 
 ros::NodeHandle nh;
 
@@ -84,7 +80,7 @@ void setup_uwb()
 void setup()
 {
     Serial.begin(57600);
-    /* gpsPort.begin(9600); */
+    gpsPort.begin(9600);
     
     nh.initNode();
     nh.advertise(pub_gps);
@@ -170,7 +166,7 @@ void discover()
     }
 }
 
-uint32_t timer = millis();
+//uint32_t timer = millis();
 void loop()
 {
     /* discover(); */
@@ -223,72 +219,39 @@ void send_message()
         }
     }
 
-    if (! usingInterrupt) {
-    // read data from the GPS in the 'main loop'
-    char c = gpsPort.read();
-  }
-    Serial.println(gpsPort.newNMEAreceived());
-    if (gpsPort.newNMEAreceived()) {
-      
-    // a tricky thing here is if we print the NMEA sentence, or data
-    // we end up not listening and catching other sentences! 
-    // so be very wary if using OUTPUT_ALLDATA and trytng to print out data
-    //Serial.println(GPS.lastNMEA());   // this also sets the newNMEAreceived() flag to false
-    Serial.println("hi");
-    if (!gpsPort.parse(gpsPort.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
+    if (! usingInterrupt) 
     {
-      got_fix = false;  // we can fail to parse a sentence in which case we should just wait for another
+        // read data from the GPS in the 'main loop'
+        char c = gpsPort.read();
     }
-    else {
-      got_fix = true;
-    }
-  }
-    if (timer > millis())  timer = millis();
-    if (millis() - timer > 100 and got_fix) 
-    { 
-      
-        timer = millis(); // reset the timer  
-//    Serial.print("Fix: "); Serial.print((int)GPS.fix);
-//    Serial.print(" quality: "); Serial.println((int)GPS.fixquality); 
-        unsigned char gps_status = gpsPort.fixquality;
-        float lat = gpsPort.latitudeDegrees;
-        float lon = gpsPort.longitudeDegrees;
-        float alt = gpsPort.altitude;
-        dq_gps nmea = {gps_status,lat,lon,alt};
-        memcpy(cur, &nmea, sizeof(dq_gps));
-        cur += sizeof(dq_gps);
-        msg_size += sizeof(dq_gps);
-        meas_types[meas_counter++] = GPS;
-        gps_msg.header.stamp = nh.now();
-        gps_msg.header.frame_id = "world";
-        gps_msg.status.status = gps_status;
-        gps_msg.latitude = lat;
-        gps_msg.longitude = lon;
-        gps_msg.altitude = alt;
-        pub_gps.publish(&gps_msg);
-        Serial.println(lat,6);   
-//    Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
-    }
+  
+    if (gpsPort.newNMEAreceived()) 
+    {  
+        // a tricky thing here is if we print the NMEA sentence, or data
+        // we end up not listening and catching other sentences! 
+        // so be very wary if using OUTPUT_ALLDATA and trytng to print out data
+        //Serial.println(GPS.lastNMEA());   // this also sets the newNMEAreceived() flag to false
 
-    /*if (fix.valid.location)
-    {
-        unsigned char gps_status = fix.status - 2;
-        float lat = fix.latitude();
-        float lon = fix.longitude();
-        float alt = fix.altitude();
-        dq_gps nmea = {gps_status,lat,lon,alt};
-        memcpy(cur, &nmea, sizeof(dq_gps));
-        cur += sizeof(dq_gps);
-        msg_size += sizeof(dq_gps);
-        meas_types[meas_counter++] = GPS;
-        gps_msg.header.stamp = nh.now();
-        gps_msg.header.frame_id = "world";
-        gps_msg.status.status = gps_status;
-        gps_msg.latitude = lat;
-        gps_msg.longitude = lon;
-        gps_msg.altitude = alt;
-        pub_gps.publish(&gps_msg);
-    }*/
+        if (gpsPort.parse(gpsPort.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
+        {
+            unsigned char gps_status = gpsPort.fixquality;
+            float lat = gpsPort.latitudeDegrees;
+            float lon = gpsPort.longitudeDegrees;
+            float alt = gpsPort.altitude;
+            dq_gps nmea = {gps_status,lat,lon,alt};
+            memcpy(cur, &nmea, sizeof(dq_gps));
+            cur += sizeof(dq_gps);
+            msg_size += sizeof(dq_gps);
+            meas_types[meas_counter++] = GPS;
+            gps_msg.header.stamp = nh.now();
+            gps_msg.header.frame_id = "world";
+            gps_msg.status.status = gps_status;
+            gps_msg.latitude = lat;
+            gps_msg.longitude = lon;
+            gps_msg.altitude = alt;
+            pub_gps.publish(&gps_msg);
+        }
+    }
 
     if (new_control)
     {
