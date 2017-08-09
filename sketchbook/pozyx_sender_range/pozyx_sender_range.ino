@@ -6,7 +6,7 @@
 //#include <NMEAGPS.h>
 #include <Adafruit_GPS.h>
 #include <AltSoftSerial.h>
-#include <Time.h>
+//#include <Time.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Pose.h>
@@ -18,6 +18,7 @@
 //#define gpsPort Serial1
 AltSoftSerial mySerial;
 Adafruit_GPS gpsPort(&mySerial);
+bool got_fix;
 boolean usingInterrupt = false;
 void useInterrupt(boolean); // Func prototype keeps Arduino 0023 happy
 //NMEAGPS  gps; // This parses the GPS characters
@@ -26,7 +27,7 @@ void useInterrupt(boolean); // Func prototype keeps Arduino 0023 happy
 uint16_t source_id;                 // the network id of this device
 uint16_t chat_id = 0;             //Broadcast the message
 int status;
-time_t last_time = 0;
+//time_t last_time = 0;
 const int offset = -5;  // Eastern Standard Time (USA)
 
 uint8_t ranging_protocol = POZYX_RANGE_PROTOCOL_PRECISION; // ranging protocol of the Pozyx.
@@ -206,7 +207,6 @@ void send_message()
     uint8_t *cur = msg;
     size_t msg_size = 0;
     uint8_t meas_counter = 0;
-    char c = gpsPort.read();
 
     for (int i = 0; i < num_cars; i++) {
         if (String(source_id,HEX) != String(car_ids[i],HEX)) {
@@ -222,9 +222,31 @@ void send_message()
             }
         }
     }
-    
-    if (millis() - timer > 100) 
+
+    if (! usingInterrupt) {
+    // read data from the GPS in the 'main loop'
+    char c = gpsPort.read();
+  }
+    Serial.println(gpsPort.newNMEAreceived());
+    if (gpsPort.newNMEAreceived()) {
+      
+    // a tricky thing here is if we print the NMEA sentence, or data
+    // we end up not listening and catching other sentences! 
+    // so be very wary if using OUTPUT_ALLDATA and trytng to print out data
+    //Serial.println(GPS.lastNMEA());   // this also sets the newNMEAreceived() flag to false
+    Serial.println("hi");
+    if (!gpsPort.parse(gpsPort.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
+    {
+      got_fix = false;  // we can fail to parse a sentence in which case we should just wait for another
+    }
+    else {
+      got_fix = true;
+    }
+  }
+    if (timer > millis())  timer = millis();
+    if (millis() - timer > 100 and got_fix) 
     { 
+      
         timer = millis(); // reset the timer  
 //    Serial.print("Fix: "); Serial.print((int)GPS.fix);
 //    Serial.print(" quality: "); Serial.println((int)GPS.fixquality); 
@@ -243,7 +265,8 @@ void send_message()
         gps_msg.latitude = lat;
         gps_msg.longitude = lon;
         gps_msg.altitude = alt;
-        pub_gps.publish(&gps_msg);   
+        pub_gps.publish(&gps_msg);
+        Serial.println(lat,6);   
 //    Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
     }
 
