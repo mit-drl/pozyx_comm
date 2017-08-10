@@ -25,6 +25,12 @@ void setup_uwb()
     Pozyx.setUWBSettings(&uwb_settings);
 }
 
+int this_car;
+uint16_t source_id;                 // the network id of this device
+const char *receivers[3] = {"6802","6806","6827"}; //every car id (Receiver, Sender)
+const int num_cars = sizeof(receivers)/2;
+const char *senders[num_cars] = {"6835","6867","685b"}; //every car id (Receiver, Sender)
+
 void setup(){
     Serial.begin(57600);
     nh.initNode();
@@ -37,6 +43,13 @@ void setup(){
         Serial.println("ERROR: Unable to connect to POZYX shield");
         Serial.println("Reset required");
         abort();
+    }
+    Pozyx.regRead(POZYX_NETWORK_ID, (uint8_t*)&source_id, 2);
+    for (int i = 0;i < num_cars;i++) {
+      if (String(source_id, HEX) == receivers[i]) {
+        this_car = i;
+        break;
+      }
     }
     //setup_uwb();
 }
@@ -117,15 +130,19 @@ void parse_data(uint16_t sender_id, uint8_t *data)
 
 void publish_messages()
 {
+    
     if (Pozyx.waitForFlag(POZYX_INT_STATUS_RX_DATA, 100))
     {
+        bool other_car = true;
         uint16_t sender_id = 0x00;
         uint8_t length = 0;
         delay(1);
         Pozyx.getLastNetworkId(&sender_id);
+        if (sender_id == senders[this_car]) {
+          other_car = false;
+        }
         Pozyx.getLastDataLength(&length);
-
-        if (length > 0)
+        if (length > 0 and other_car)
         {
             uint8_t data[length];
             Pozyx.readRXBufferData(data, length);
