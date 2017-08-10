@@ -5,7 +5,6 @@
 #include <common.h>
 #include <Adafruit_GPS.h>
 #include <AltSoftSerial.h>
-//#include <Time.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Pose.h>
@@ -16,19 +15,15 @@
 //#define gpsPort Serial1
 AltSoftSerial mySerial;
 Adafruit_GPS gpsPort(&mySerial);
-bool got_parse;
-//boolean usingInterrupt = false;
-//void useInterrupt(boolean); // Func prototype keeps Arduino 0023 happy
 
 uint16_t source_id;                 // the network id of this device
 uint16_t chat_id = 0;             //Broadcast the message
 int status;
-//time_t last_time = 0;
 const int offset = -5;  // Eastern Standard Time (USA)
 
 uint8_t ranging_protocol = POZYX_RANGE_PROTOCOL_PRECISION; // ranging protocol of the Pozyx.
-const int num_cars = 1; //Amount of other cars
-uint16_t car_ids[num_cars] = {0x6827}; //Default is car0 sender so only range car1,car2 receivers
+const int num_cars = 2; //Amount of other cars
+uint16_t car_ids[num_cars] = {0x6806,0x6827}; //Default is car0 sender so only range car1,car2 receivers
 
 ros::NodeHandle nh;
 
@@ -89,15 +84,13 @@ void setup()
   nh.subscribe(consensus_sub);
 
   gpsPort.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
-  //gpsPort.sendCommand(PMTK_API_SET_FIX_CTL_5HZ);
+  gpsPort.sendCommand(PMTK_API_SET_FIX_CTL_5HZ);
   gpsPort.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ);
   //gpsPort.sendCommand(PGCMD_ANTENNA);
   gpsPort.sendCommand(PMTK_SET_BAUD_57600);
   delay(1000);
   gpsPort.begin(57600);
-  delay(1000);
-  //useInterrupt(true);
-  delay(500);
+  delay(1500);
 
   // initialize Pozyx
   if (Pozyx.begin() == POZYX_FAILURE)
@@ -113,39 +106,15 @@ void setup()
   if (String(source_id, HEX) == "6867") //This is car1 sender
   {
     car_ids[0] = 0x6802; //so only range car0 receiver
-    /* car_ids[1] = 0x6827; //and car2 reciever */
+    car_ids[1] = 0x6827; //and car2 reciever 
   }
   else if (String(source_id, HEX) == "685b") //This is car2 sender
   {
-    //car_ids[0] = 0x6802; //so only range car0
-    car_ids[0] = 0x6806; //and car1
+    car_ids[0] = 0x6802; //so only range car0
+    car_ids[1] = 0x6806; //and car1
   }
 }
 
-// Interrupt is called once a millisecond, looks for any new GPS data, and stores it
-/*SIGNAL(TIMER0_COMPA_vect) 
-{
-  char c = gpsPort.read();
-  // if you want to debug, this is a good time to do it!
-}
-
-void useInterrupt(boolean v) 
-{
-  if (v) 
-  {
-    // Timer0 is already used for millis() - we'll just interrupt somewhere
-    // in the middle and call the "Compare A" function above
-    OCR0A = 0xAF;
-    TIMSK0 |= _BV(OCIE0A);
-    usingInterrupt = true;
-  } 
-  else 
-  {
-    // do not call the interrupt function COMPA anymore
-    TIMSK0 &= ~_BV(OCIE0A);
-    usingInterrupt = false;
-  }
-}*/
 
 void discover()
 {
@@ -170,8 +139,7 @@ void discover()
   {
   }
 }
-int count = 0;
-uint32_t timer = millis();
+
 void loop()
 {
   /* discover(); */
@@ -214,7 +182,6 @@ void send_message()
     if (String(source_id, HEX) != String(car_ids[i], HEX)) {
       device_range_t range;
       status = Pozyx.doRanging(car_ids[i], &range);
-      //Serial.println(range.distance);
       if (status == POZYX_SUCCESS and range.distance > 0) {
         dq_range rng = {car_ids[i], range.distance};
         memcpy(cur, &rng, sizeof(dq_range));
@@ -226,44 +193,31 @@ void send_message()
     }
   }
 
-  //if (! usingInterrupt)
-  //{
-  // read data from the GPS in the 'main loop'
-  
-  //got_parse = false;
   while (!gpsPort.newNMEAreceived())
   {
-  char c = gpsPort.read();
-  //Serial.println(c);
-  
-    
-    // a tricky thing here is if we print the NMEA sentence, or data
-    // we end up not listening and catching other sentences!
-    // so be very wary if using OUTPUT_ALLDATA and trytng to print out data
-    //Serial.println(GPS.lastNMEA());   // this also sets the newNMEAreceived() flag to false
+    char c = gpsPort.read();
   }
-    if (gpsPort.parse(gpsPort.lastNMEA())){   // this also sets the newNMEAreceived() flag to false
-      //Serial.println("lreigfhkjahfsaslkhs");
-      unsigned char gps_status = gpsPort.fixquality;
-      float lat = gpsPort.latitudeDegrees;
-      float lon = gpsPort.longitudeDegrees;
-      float alt = 1.0;
-      dq_gps nmea = {gps_status, lat, lon, alt};
-      memcpy(cur, &nmea, sizeof(dq_gps));
-      cur += sizeof(dq_gps);
-      msg_size += sizeof(dq_gps);
-      meas_types[meas_counter++] = GPS;
-      gps_msg.header.stamp = nh.now();
-      gps_msg.header.frame_id = "world";
-      gps_msg.status.status = gps_status;
-      gps_msg.latitude = lat;
-      gps_msg.longitude = lon;
-      gps_msg.altitude = alt;
-      pub_gps.publish(&gps_msg);
-      //Serial.println(lat,8);
-    }
   
-
+  if (gpsPort.parse(gpsPort.lastNMEA()))
+  {   // this also sets the newNMEAreceived() flag to false
+    unsigned char gps_status = gpsPort.fixquality;
+    float lat = gpsPort.latitudeDegrees;
+    float lon = gpsPort.longitudeDegrees;
+    float alt = 0.0;
+    dq_gps nmea = {gps_status, lat, lon, alt};
+    memcpy(cur, &nmea, sizeof(dq_gps));
+    cur += sizeof(dq_gps);
+    msg_size += sizeof(dq_gps);
+    meas_types[meas_counter++] = GPS;
+    gps_msg.header.stamp = nh.now();
+    gps_msg.header.frame_id = "world";
+    gps_msg.status.status = gps_status;
+    gps_msg.latitude = lat;
+    gps_msg.longitude = lon;
+    gps_msg.altitude = alt;
+    pub_gps.publish(&gps_msg);
+  }
+  
   if (new_control)
   {
     dq_control con = {
@@ -288,8 +242,6 @@ void send_message()
   {
   }
 
-  //Serial.println(msg[2]);
-  //Serial.print(meas_types[0]); Serial.println(meas_types[1]);
   memcpy(buffer, &meas_counter, sizeof(uint8_t));
   memcpy(buffer + sizeof(uint8_t), meas_types,
          sizeof(sensor_type) * meas_counter);
@@ -298,6 +250,5 @@ void send_message()
   Pozyx.writeTXBufferData(buffer, sizeof(uint8_t) +
                           sizeof(sensor_type) * meas_counter + msg_size);
   status = Pozyx.sendTXBufferData(chat_id);
-  //Serial.println(sizeof(uint8_t) + sizeof(sensor_type) * meas_counter + msg_size);
   delay(1);
 }
