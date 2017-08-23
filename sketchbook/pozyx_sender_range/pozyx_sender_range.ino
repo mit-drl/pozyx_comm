@@ -23,7 +23,11 @@ const int offset = -5;  // Eastern Standard Time (USA)
 
 uint8_t ranging_protocol = POZYX_RANGE_PROTOCOL_PRECISION; // ranging protocol of the Pozyx.
 const int num_cars = 2; //Amount of other cars
+const int num_dim = 3;
 uint16_t car_ids[num_cars] = {0x6806,0x6827}; //Default is car0 sender so only range car1,car2 receivers
+
+using dq_consensus = dq_consensus_t<num_cars, num_dim>;
+dq_consensus *con = new dq_consensus;
 
 ros::NodeHandle nh;
 
@@ -106,7 +110,7 @@ void setup()
     if (String(source_id, HEX) == "6867") //This is car1 sender
     {
         car_ids[0] = 0x6802; //so only range car0 receiver
-        car_ids[1] = 0x6827; //and car2 reciever 
+        car_ids[1] = 0x6827; //and car2 reciever
     }
     else if (String(source_id, HEX) == "685b") //This is car2 sender
     {
@@ -196,7 +200,7 @@ void send_message()
     {
         char c = gpsPort.read();
     }
-    
+
     if (gpsPort.parse(gpsPort.lastNMEA()))
     {       // this also sets the newNMEAreceived() flag to false
         unsigned char gps_status = gpsPort.fixquality;
@@ -216,29 +220,38 @@ void send_message()
         gps_msg.altitude = alt;
         pub_gps.publish(&gps_msg);
     }
-    
+
     if (new_control)
     {
         dq_control con = {
             control.angular.z,
-            control.linear.x,
-            odom.position.x,
-            odom.position.y,
-            odom.orientation.x,
-            odom.orientation.y,
-            odom.orientation.z,
-            odom.orientation.w
+            control.linear.x
+            /* odom.position.x, */
+            /* odom.position.y, */
+            /* odom.orientation.x, */
+            /* odom.orientation.y, */
+            /* odom.orientation.z, */
+            /* odom.orientation.w */
         };
         memcpy(cur, &con, sizeof(dq_control));
         cur += sizeof(dq_control);
         msg_size += sizeof(dq_control);
         meas_types[meas_counter++] = CONTROL;
         new_control = false;
-        new_odom = false;
     }
 
     if (new_consensus)
     {
+        con->id = consensus.car_id;
+        memcpy(&con->confidences, &consensus.confidences,
+            sizeof(float) * num_cars * num_dim * num_cars * num_dim);
+        memcpy(&con->states, &consensus.states,
+            sizeof(float) * num_cars * num_dim);
+        memcpy(cur, &con, sizeof(dq_consensus));
+        cur += sizeof(dq_consensus);
+        msg_size += sizeof(dq_consensus);
+        meas_types[meas_counter++] = CONSENSUS;
+        new_consensus = false;
     }
 
     memcpy(buffer, &meas_counter, sizeof(uint8_t));
@@ -247,7 +260,7 @@ void send_message()
     memcpy(buffer + sizeof(sensor_type) * meas_counter + sizeof(uint8_t),
                  msg, msg_size);
     Pozyx.writeTXBufferData(buffer, sizeof(uint8_t) +
-                                                    sizeof(sensor_type) * meas_counter + msg_size);
+        sizeof(sensor_type) * meas_counter + msg_size);
     status = Pozyx.sendTXBufferData(chat_id);
     delay(1);
 }

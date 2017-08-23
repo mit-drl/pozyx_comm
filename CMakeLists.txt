@@ -109,6 +109,23 @@ CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy sensor_msgs std_msgs multi_ca
 #  DEPENDS system_lib
 )
 
+add_custom_target(BuildArduinoRos ALL
+    COMMAND scripts/build --build-ros
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+add_custom_target(BuildReceiver ALL
+    COMMAND scripts/build --port /dev/ttyACM0 --receiver
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    DEPENDS BuildArduinoRos
+)
+
+add_custom_target(BuildSender ALL
+    COMMAND scripts/build --port /dev/ttyACM1 --sender
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    DEPENDS BuildArduinoRos
+)
+
 ###########
 ## Build ##
 ###########

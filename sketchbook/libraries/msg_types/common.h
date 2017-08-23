@@ -11,12 +11,12 @@ typedef struct dq_range_t {
 typedef struct dq_control_t {
     float steering_angle;
     float velocity;
-    float x;
-    float y;
-    float qx;
-    float qy;
-    float qz;
-    float qw;
+    // float x;
+    // float y;
+    // float qx;
+    // float qy;
+    // float qz;
+    // float qw;
 } dq_control;
 
 typedef struct dq_header_t {
@@ -31,8 +31,9 @@ typedef struct dq_gps_t {
     float alt;
 } dq_gps;
 
-typedef struct dq_consensus_t {
+template <int NUM_CARS, int NUM_DIM>
+struct dq_consensus_t {
     uint16_t id;
-    float confidence;
-    float state;
-} dq_consensus;
+    float confidences[NUM_CARS * NUM_DIM * NUM_CARS * NUM_DIM];
+    float states[NUM_CARS * NUM_DIM];
+};

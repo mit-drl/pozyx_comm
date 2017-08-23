@@ -5,16 +5,19 @@
 #include <multi_car_msgs/CarControl.h>
 #include <multi_car_msgs/GPS.h>
 #include <multi_car_msgs/UWBRange.h>
+#include <multi_car_msgs/ConsensusMsg.h>
 #include <common.h>
 
 ros::NodeHandle  nh;
 multi_car_msgs::UWBRange range;
 multi_car_msgs::GPS gps;
 multi_car_msgs::CarControl control;
+multi_car_msgs::ConsensusMsg consensus;
 
 ros::Publisher pub_range("ranges", &range);
 ros::Publisher pub_gps("fixes", &gps);
 ros::Publisher pub_control("controls", &control);
+ros::Publisher pub_consensus("consensus", &consensus);
 
 void setup_uwb()
 {
@@ -30,6 +33,8 @@ uint16_t source_id;                 // the network id of this device
 const char *receivers[3] = {"6802","6806","6827"}; //every car id (Receiver, Sender)
 const int num_cars = sizeof(receivers)/2;
 const char *senders[num_cars] = {"6835","6867","685b"}; //every car id (Receiver, Sender)
+
+using dq_consensus = dq_consensus_t<2, 3>;
 
 void setup(){
     Serial.begin(57600);
@@ -109,20 +114,19 @@ void parse_data(uint16_t sender_id, uint8_t *data)
                 cur += sizeof(dq_control);
                 control.header.stamp = nh.now();
                 control.car_id = sender_id;
-                control.pose.header.stamp = nh.now();
-                String frame_id = String(sender_id, HEX) + String("/odom");
-                char frame_id_chars[frame_id.length()];
-                frame_id.toCharArray(frame_id_chars, frame_id.length() + 1);
-                control.pose.header.frame_id = frame_id_chars;
-                control.pose.pose.position.x = con.x;
-                control.pose.pose.position.y = con.y;
-                control.pose.pose.orientation.x = con.qx;
-                control.pose.pose.orientation.y = con.qy;
-                control.pose.pose.orientation.z = con.qz;
-                control.pose.pose.orientation.w = con.qw;
                 control.steering_angle = con.steering_angle;
                 control.velocity = con.velocity;
                 pub_control.publish(&control);
+                break;
+            case CONSENSUS:
+                dq_consensus cons;
+                memcpy(&cons, cur, sizeof(dq_consensus));
+                cur += sizeof(dq_consensus);
+                consensus.header.stamp = nh.now();
+                consensus.confidences = cons.confidences;
+                consensus.states = cons.states;
+                consensus.car_id = cons.id;
+                pub_consensus.publish(&consensus);
                 break;
         }
     }
@@ -130,7 +134,7 @@ void parse_data(uint16_t sender_id, uint8_t *data)
 
 void publish_messages()
 {
-    
+
     if (Pozyx.waitForFlag(POZYX_INT_STATUS_RX_DATA, 100))
     {
         bool other_car = true;
@@ -141,6 +145,7 @@ void publish_messages()
         if (sender_id == senders[this_car]) {
           other_car = false;
         }
+
         Pozyx.getLastDataLength(&length);
         if (length > 0 and other_car)
         {
