@@ -226,8 +226,6 @@ void send_message()
     if (millis() - timer > 100)
     {
         timer = millis(); // reset the timer
-//    Serial.print("Fix: "); Serial.print((int)GPS.fix);
-//    Serial.print(" quality: "); Serial.println((int)GPS.fixquality);
         unsigned char gps_status = gpsPort.fixquality;
         float lat = gpsPort.latitudeDegrees;
         float lon = gpsPort.longitudeDegrees;
@@ -244,28 +242,7 @@ void send_message()
         gps_msg.longitude = lon;
         gps_msg.altitude = alt;
         pub_gps.publish(&gps_msg);
-//    Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
     }
-
-    /*if (fix.valid.location)
-    {
-        unsigned char gps_status = fix.status - 2;
-        float lat = fix.latitude();
-        float lon = fix.longitude();
-        float alt = fix.altitude();
-        dq_gps nmea = {gps_status,lat,lon,alt};
-        memcpy(cur, &nmea, sizeof(dq_gps));
-        cur += sizeof(dq_gps);
-        msg_size += sizeof(dq_gps);
-        meas_types[meas_counter++] = GPS;
-        gps_msg.header.stamp = nh.now();
-        gps_msg.header.frame_id = "world";
-        gps_msg.status.status = gps_status;
-        gps_msg.latitude = lat;
-        gps_msg.longitude = lon;
-        gps_msg.altitude = alt;
-        pub_gps.publish(&gps_msg);
-    }*/
 
     if (new_control)
     {
