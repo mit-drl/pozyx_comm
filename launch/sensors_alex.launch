@@ -1,0 +1,8 @@
+<launch>
+
+    <include file="$(find pozyx_comm)/launch/sensors.launch">
+        <arg name="receiver_port" value="/dev/ttyACM0"/>
+        <arg name="sender_port" value="/dev/ttyACM1"/>
+    </include>
+
+</launch>

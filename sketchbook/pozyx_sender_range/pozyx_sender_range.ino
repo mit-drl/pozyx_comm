@@ -84,7 +84,7 @@ void setup()
 {
     Serial.begin(57600);
     /* gpsPort.begin(9600); */
-    
+
     nh.initNode();
     nh.advertise(pub_gps);
     nh.subscribe(car_control_sub);
@@ -101,7 +101,7 @@ void setup()
     delay(1000);
     useInterrupt(true);
     delay(500);
-    
+
     // initialize Pozyx
     if(Pozyx.begin() == POZYX_FAILURE)
     {
@@ -222,12 +222,12 @@ void send_message()
             }
         }
     }
-    
-    if (millis() - timer > 100) 
-    { 
-        timer = millis(); // reset the timer  
+
+    if (millis() - timer > 100)
+    {
+        timer = millis(); // reset the timer
 //    Serial.print("Fix: "); Serial.print((int)GPS.fix);
-//    Serial.print(" quality: "); Serial.println((int)GPS.fixquality); 
+//    Serial.print(" quality: "); Serial.println((int)GPS.fixquality);
         unsigned char gps_status = gpsPort.fixquality;
         float lat = gpsPort.latitudeDegrees;
         float lon = gpsPort.longitudeDegrees;
@@ -243,7 +243,7 @@ void send_message()
         gps_msg.latitude = lat;
         gps_msg.longitude = lon;
         gps_msg.altitude = alt;
-        pub_gps.publish(&gps_msg);   
+        pub_gps.publish(&gps_msg);
 //    Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
     }
 
