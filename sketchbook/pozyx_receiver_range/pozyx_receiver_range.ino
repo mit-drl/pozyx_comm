@@ -90,7 +90,6 @@ void parse_data(uint16_t sender_id, uint8_t *data)
                     range.from_id = sender_id;
                     range.to_id = rng.id;
                     range.header.stamp = nh.now();
-                    Serial.println(rng.dist);
                     pub_range.publish(&range);
                 }
                 break;
