@@ -39,7 +39,7 @@ geometry_msgs::Pose odom;
 multi_car_msgs::ConsensusMsg consensus;
 bool new_control = false, new_consensus = false, new_odom = false;
 
-void car_control_cb(const geometry_msgs::Twist msg)
+void car_control_cb(const multi_car_msgs::CarControl msg)
 {
     control = msg;
     new_control = true;
