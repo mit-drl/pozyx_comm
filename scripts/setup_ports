@@ -1,6 +1,6 @@
 #!/bin/bash
 
+rm -rf ports
 mkdir ports
 ln -s /dev/serial/by-path/pci-0000\:00\:14.0-usb-0\:1\:1.0 ports/receiver
-ln -s /dev/serial/by-path/pci-0000\:00\:14.0-usb-0\:2\:1.0 ports/sender
-
+ln -s /dev/serial/by-path/pci-0000\:00\:14.0-usb-0\:2\:1.0 ports/sender 
