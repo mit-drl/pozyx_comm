@@ -57,7 +57,7 @@ void consensus_cb(const multi_car_msgs::ConsensusMsg &msg)
     new_consensus = true;
 }
 
-ros::Subscriber<geometry_msgs::Twist>
+ros::Subscriber<multi_car_msgs::CarControl>
 car_control_sub("/control", &car_control_cb);
 
 ros::Subscriber<geometry_msgs::Pose>
@@ -224,8 +224,8 @@ void send_message()
     if (new_control)
     {
         dq_control con = {
-            control.angular.z,
-            control.linear.x
+            control.steering_angle,
+            control.velocity
             /* odom.position.x, */
             /* odom.position.y, */
             /* odom.orientation.x, */
