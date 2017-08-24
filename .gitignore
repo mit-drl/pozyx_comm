@@ -48,3 +48,4 @@ CATKIN_IGNORE
 sketchbook/libraries/ros_lib/
 third_party/
 .ropeproject/
+ports/
