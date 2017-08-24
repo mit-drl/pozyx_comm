@@ -34,7 +34,7 @@ ros::NodeHandle nh;
 sensor_msgs::NavSatFix gps_msg;
 ros::Publisher pub_gps("fix", &gps_msg);
 
-geometry_msgs::Twist control;
+multi_car_msgs::CarControl control;
 geometry_msgs::Pose odom;
 multi_car_msgs::ConsensusMsg consensus;
 bool new_control = false, new_consensus = false, new_odom = false;
