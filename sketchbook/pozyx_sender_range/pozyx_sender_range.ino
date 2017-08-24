@@ -240,7 +240,7 @@ void send_message()
         new_control = false;
     }
 
-    if (new_consensus)
+    if (false and new_consensus)
     {
         con->id = consensus.car_id;
         memcpy(&con->confidences, &consensus.confidences,
