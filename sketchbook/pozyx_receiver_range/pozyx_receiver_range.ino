@@ -93,6 +93,16 @@ void parse_data(uint16_t sender_id, uint8_t *data)
                     pub_range.publish(&range);
                 }
                 break;
+            case CONTROL:
+                dq_control con;
+                memcpy(&con, cur, sizeof(dq_control));
+                cur += sizeof(dq_control);
+                control.header.stamp = nh.now();
+                control.car_id = sender_id;
+                control.steering_angle = con.steering_angle;
+                control.velocity = con.velocity;
+                pub_control.publish(&control);
+                break;
             case GPS:
                 dq_gps nmea;
                 memcpy(&nmea, cur, sizeof(dq_gps));
@@ -106,16 +116,6 @@ void parse_data(uint16_t sender_id, uint8_t *data)
                 gps.fix.longitude = nmea.lon;
                 gps.fix.altitude = nmea.alt;
                 pub_gps.publish(&gps);
-                break;
-            case CONTROL:
-                dq_control con;
-                memcpy(&con, cur, sizeof(dq_control));
-                cur += sizeof(dq_control);
-                control.header.stamp = nh.now();
-                control.car_id = sender_id;
-                control.steering_angle = con.steering_angle;
-                control.velocity = con.velocity;
-                pub_control.publish(&control);
                 break;
             case CONSENSUS:
                 dq_consensus cons;

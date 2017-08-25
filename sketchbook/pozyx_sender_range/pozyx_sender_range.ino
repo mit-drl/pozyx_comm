@@ -64,7 +64,7 @@ ros::Subscriber<geometry_msgs::Pose>
 car_odom_sub("/pose", &car_odom_cb);
 
 ros::Subscriber<multi_car_msgs::ConsensusMsg>
-consensus_sub("consensus", &consensus_cb);
+consensus_sub("/consensus", &consensus_cb);
 
 
 void setup_uwb()
@@ -243,9 +243,9 @@ void send_message()
     if (false and new_consensus)
     {
         con->id = consensus.car_id;
-        memcpy(&con->confidences, &consensus.confidences,
+        memcpy(con->confidences, consensus.confidences,
             sizeof(float) * num_cars * num_dim * num_cars * num_dim);
-        memcpy(&con->states, &consensus.states,
+        memcpy(con->states, consensus.states,
             sizeof(float) * num_cars * num_dim);
         memcpy(cur, &con, sizeof(dq_consensus));
         cur += sizeof(dq_consensus);
