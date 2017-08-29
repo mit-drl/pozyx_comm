@@ -117,6 +117,8 @@ void setup()
         car_ids[0] = 0x6802; //so only range car0
         car_ids[1] = 0x6806; //and car1
     }
+
+    setup_uwb();
 }
 
 

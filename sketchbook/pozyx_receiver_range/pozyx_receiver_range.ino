@@ -56,7 +56,7 @@ void setup(){
         break;
       }
     }
-    //setup_uwb();
+    setup_uwb();
 }
 
 void loop(){

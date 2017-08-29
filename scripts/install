@@ -1,7 +1,9 @@
 #!/bin/bash
 
 mkdir third_party
-curl http://wallarelvo-tower.csail.mit.edu/arduino-1.8.3-linux64.tar.xz \
+# curl http://wallarelvo-tower.csail.mit.edu/arduino-1.8.3-linux64.tar.xz \
+#     > third_party/arduino.tar.xz
+curl http://wallarelvo-tower.csail.mit.edu/arduino-1.8.4-linuxarm.tar.xz \
     > third_party/arduino.tar.xz
 tar xpvf third_party/arduino.tar.xz -C third_party
 scripts/setup_ports
