@@ -42,6 +42,7 @@ void setup(){
     nh.advertise(pub_range);
     nh.advertise(pub_gps);
     nh.advertise(pub_control);
+    nh.advertise(pub_consensus);
 
     // initialize Pozyx
     if(!Pozyx.begin(false, MODE_INTERRUPT, POZYX_INT_MASK_RX_DATA, 0)){

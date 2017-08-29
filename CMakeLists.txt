@@ -109,6 +109,8 @@ CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy sensor_msgs std_msgs multi_ca
 #  DEPENDS system_lib
 )
 
+option(Alex "Should be set if Alex is compiling" OFF)
+
 add_custom_command(OUTPUT ports/receiver ports/sender
     COMMAND scripts/setup_ports
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -121,17 +123,19 @@ add_custom_target(BuildArduinoRos ALL
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-add_custom_target(BuildReceiver ALL
-    COMMAND scripts/build --port ports/receiver --receiver
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDS BuildArduinoRos CreatePorts
-)
+if(Alex)
+    add_custom_target(BuildReceiver ALL
+        COMMAND scripts/build --port ports/receiver --receiver
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        DEPENDS BuildArduinoRos CreatePorts
+    )
 
-add_custom_target(BuildSender ALL
-    COMMAND scripts/build --port ports/sender --sender
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDS BuildArduinoRos CreatePorts
-)
+    add_custom_target(BuildSender ALL
+        COMMAND scripts/build --port ports/sender --sender
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        DEPENDS BuildArduinoRos CreatePorts
+    )
+endif()
 
 ###########
 ## Build ##
