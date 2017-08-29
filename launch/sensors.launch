@@ -1,8 +1,12 @@
 <launch>
 
     <arg name="baud" default="57600"/>
-    <arg name="receiver_port" default="/dev/serial/by-path/pci-0000:00:14.0-usb-0:1:1.0"/>
-    <arg name="sender_port" default="/dev/serial/by-path/pci-0000:00:14.0-usb-0:2:1.0"/>
+    <!-- <arg name="receiver_port" default="/dev/serial/by&#45;path/pci&#45;0000:00:14.0&#45;usb&#45;0:1:1.0"/> -->
+    <!-- <arg name="sender_port" default="/dev/serial/by&#45;path/pci&#45;0000:00:14.0&#45;usb&#45;0:2:1.0"/> -->
+
+    <arg name="receiver_port" default="/dev/ttyACM0"/>
+    <arg name="sender_port" default="/dev/ttyACM1"/>
+
 
     <node name="pozyx_receiver" pkg="rosserial_python" type="serial_node.py"
 		output="screen" required="true">
