@@ -24,7 +24,7 @@ if args.build_ros:
               "sketchbook/libraries"]
     subprocess.call(br_cmd)
 
-arduino_loc = "third_party/arduino-1.8.4/arduino"
+arduino_loc = "third_party/arduino-1.8.0/arduino"
 port = None
 default_port = None
 
