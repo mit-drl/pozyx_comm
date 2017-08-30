@@ -241,15 +241,15 @@ void send_message()
         new_control = false;
     }
 
-    if (new_consensus)
+    if (false and new_consensus)
     {
         con->id = consensus.car_id;
-        memcpy(con->confidences, consensus.confidences,
-            sizeof(float) * num_cars * num_dim * num_cars * num_dim);
-        /* con->confidences = consensus.confidences; */
-        /* con->confidences_length = num_cars * num_dim * num_cars * num_dim; */
-        /* con->states = consensus.states; */
-        /* con->states_length = num_cars * num_dim; */
+        /* memcpy(con->confidences, consensus.confidences, */
+        /*     sizeof(float) * num_cars * num_dim * num_cars * num_dim); */
+        con->confidences = consensus.confidences;
+        con->confidences_length = num_cars * num_dim * num_cars * num_dim;
+        con->states = consensus.states;
+        con->states_length = num_cars * num_dim;
         memcpy(con->states, consensus.states,
             sizeof(float) * num_cars * num_dim);
         memcpy(cur, &con, sizeof(dq_consensus));

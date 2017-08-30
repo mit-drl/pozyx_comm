@@ -20,8 +20,4 @@
         <param name="port" value="$(arg sender_port)"/>
     </node>
 
-    <node name="odom_to_pose" pkg="pozyx_comm" type="odom_to_pose.py"
-        output="screen" required="true">
-    </node>
-
 </launch>

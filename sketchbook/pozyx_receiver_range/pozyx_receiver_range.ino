@@ -6,6 +6,7 @@
 #include <multi_car_msgs/GPS.h>
 #include <multi_car_msgs/UWBRange.h>
 #include <multi_car_msgs/ConsensusMsg.h>
+#include <multi_car_msgs/PozyxDebug.h>
 #include <common.h>
 
 ros::NodeHandle  nh;
@@ -13,7 +14,9 @@ multi_car_msgs::UWBRange range;
 multi_car_msgs::GPS gps;
 multi_car_msgs::CarControl control;
 multi_car_msgs::ConsensusMsg consensus;
+multi_car_msgs::PozyxDebug debug_msg;
 
+ros::Publisher pub_debug("/receiver/debug", &debug_msg);
 ros::Publisher pub_range("ranges", &range);
 ros::Publisher pub_gps("fixes", &gps);
 ros::Publisher pub_control("controls", &control);
@@ -24,7 +27,7 @@ void setup_uwb()
     UWB_settings_t uwb_settings;
     Pozyx.getUWBSettings(&uwb_settings);
     uwb_settings.bitrate = 2;
-    uwb_settings.plen = 0x24;
+    uwb_settings.plen = 0x08;
     Pozyx.setUWBSettings(&uwb_settings);
 }
 
@@ -39,6 +42,7 @@ using dq_consensus = dq_consensus_t<2, 3>;
 void setup(){
     Serial.begin(57600);
     nh.initNode();
+    nh.advertise(pub_debug);
     nh.advertise(pub_range);
     nh.advertise(pub_gps);
     nh.advertise(pub_control);
@@ -76,6 +80,14 @@ void parse_data(uint16_t sender_id, uint8_t *data)
     memcpy(meas_types, cur, num_meas * sizeof(sensor_type));
     cur += num_meas * sizeof(sensor_type);
 
+    debug_msg.header.stamp = nh.now();
+    debug_msg.sender_id = sender_id;
+    debug_msg.receiver_id = source_id;
+    debug_msg.num_meas = num_meas;
+    debug_msg.meas_types = (uint8_t *) meas_types;
+    debug_msg.meas_types_length = num_meas;
+    pub_debug.publish(&debug_msg);
+
     for (size_t i = 0; i < num_meas; i++)
     {
         switch (meas_types[i])
@@ -111,7 +123,7 @@ void parse_data(uint16_t sender_id, uint8_t *data)
                 gps.header.stamp = nh.now();
                 gps.car_id = sender_id;
                 gps.fix.header.stamp = nh.now();
-                gps.fix.header.frame_id = "world";
+                //gps.fix.header.frame_id = "world";
                 gps.fix.status.status = nmea.status;
                 gps.fix.latitude = nmea.lat;
                 gps.fix.longitude = nmea.lon;
@@ -124,7 +136,9 @@ void parse_data(uint16_t sender_id, uint8_t *data)
                 cur += sizeof(dq_consensus);
                 consensus.header.stamp = nh.now();
                 consensus.confidences = cons.confidences;
+                consensus.confidences_length = 2 * 3 * 2 * 3;
                 consensus.states = cons.states;
+                consensus.states_length = 2 * 3;
                 consensus.car_id = cons.id;
                 pub_consensus.publish(&consensus);
                 break;
