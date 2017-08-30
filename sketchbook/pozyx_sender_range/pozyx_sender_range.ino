@@ -198,7 +198,6 @@ void send_message()
                 cur += sizeof(dq_range);
                 msg_size += sizeof(dq_range);
                 meas_types[meas_counter++] = RANGE;
-                break;
             }
         }
     }
@@ -239,6 +238,7 @@ void send_message()
         msg_size += sizeof(dq_control);
         meas_types[meas_counter++] = CONTROL;
         new_control = false;
+        /* nh.loginfo("[Sender] -- CONTROL"); */
     }
 
     if (new_consensus)
@@ -259,10 +259,12 @@ void send_message()
         new_consensus = false;
     }
 
-    memcpy(buffer, &meas_counter, sizeof(uint8_t));
-    memcpy(buffer + sizeof(uint8_t), meas_types,
+    dq_header header = {meas_counter, source_id};
+    memcpy(buffer, &header, sizeof(dq_header));
+    /* memcpy(buffer, &meas_counter, sizeof(uint8_t)); */
+    memcpy(buffer + sizeof(dq_header), meas_types,
                  sizeof(sensor_type) * meas_counter);
-    memcpy(buffer + sizeof(sensor_type) * meas_counter + sizeof(uint8_t),
+    memcpy(buffer + sizeof(dq_header) + sizeof(sensor_type) * meas_counter,
                  msg, msg_size);
     debug_msg.header.stamp = nh.now();
     debug_msg.sender_id = source_id;
@@ -274,7 +276,7 @@ void send_message()
     pub_debug.publish(&debug_msg);
     if (meas_counter > 0)
     {
-        Pozyx.writeTXBufferData(buffer, sizeof(uint8_t) +
+        Pozyx.writeTXBufferData(buffer, sizeof(dq_header) +
             sizeof(sensor_type) * meas_counter + msg_size);
         status = Pozyx.sendTXBufferData(chat_id);
     }
