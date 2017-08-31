@@ -13,6 +13,7 @@
 #include <multi_car_msgs/ConsensusMsg.h>
 #include <multi_car_msgs/PozyxDebug.h>
 #include <multi_car_msgs/LidarPose.h>
+#include <multi_car_msgs/UWBRange.h>
 
 //#define gpsPort Serial1
 AltSoftSerial mySerial;
@@ -40,6 +41,9 @@ ros::Publisher pub_gps("fix", &gps_msg);
 
 multi_car_msgs::PozyxDebug debug_msg;
 ros::Publisher pub_debug("/debug/sender", &debug_msg);
+
+multi_car_msgs::UWBRange range_msg;
+ros::Publisher pub_range("/ranges", &range_msg);
 
 multi_car_msgs::CarControl control;
 multi_car_msgs::LidarPose lidar_pose;
@@ -90,6 +94,7 @@ void setup_uwb()
     Pozyx.getUWBSettings(&uwb_settings);
     uwb_settings.bitrate = 0;
     uwb_settings.plen = 0x08;
+    /* uwb_settings.channel = 1; */
     Pozyx.setUWBSettings(&uwb_settings);
 }
 
@@ -102,10 +107,11 @@ void setup()
     nh.initNode();
     nh.advertise(pub_gps);
     nh.advertise(pub_debug);
-    nh.subscribe(car_control_sub);
-    nh.subscribe(car_odom_sub);
-    nh.subscribe(consensus_sub);
-    nh.subscribe(lidar_pose_sub);
+    nh.advertise(pub_range);
+    /* nh.subscribe(car_control_sub); */
+    /* nh.subscribe(car_odom_sub); */
+    /* nh.subscribe(consensus_sub); */
+    /* nh.subscribe(lidar_pose_sub); */
 
     gpsPort.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
     gpsPort.sendCommand(PMTK_API_SET_FIX_CTL_5HZ);
@@ -141,30 +147,6 @@ void setup()
     setup_uwb();
 }
 
-
-void discover()
-{
-    Pozyx.clearDevices();
-    int status = Pozyx.doDiscovery(POZYX_DISCOVERY_ANCHORS_ONLY);
-    if (status == POZYX_SUCCESS)
-    {
-        uint8_t n_devs = 0;
-        status = 0;
-        status = Pozyx.getDeviceListSize(&n_devs);
-        if (n_devs > 0)
-        {
-            uint16_t devices[n_devs];
-            Pozyx.getDeviceIds(devices, n_devs);
-            for (int i = 0; i < n_devs; i++)
-            {
-                //Serial.println(String(devices[i], HEX));
-            }
-        }
-    }
-    else
-    {
-    }
-}
 
 void loop()
 {
@@ -212,14 +194,15 @@ void send_message()
             if (status == POZYX_SUCCESS and range.distance > 0) {
                 dq_range rng = {car_ids[i], range.distance};
                 msg_size += write_msg<dq_range>(cur, &rng);
-                /* memcpy(cur, &rng, sizeof(dq_range)); */
-                /* cur += sizeof(dq_range); */
-                /* msg_size += sizeof(dq_range); */
                 meas_types[meas_counter++] = RANGE;
+                range_msg.distance = rng.dist / 1000.0;
+                range_msg.from_id = source_id;
+                range_msg.to_id = car_ids[i];
+                range_msg.header.stamp = nh.now();
+                pub_range.publish(&range_msg);
             }
         }
     }
-    nh.spinOnce();
 
     /* while (!gpsPort.newNMEAreceived()) */
     /* { */
@@ -282,13 +265,12 @@ void send_message()
         lp.id = lidar_pose.car_id;
         /* memcpy(lp.cov, lidar_pose.cov, num_dim * num_dim * sizeof(float)); */
         msg_size += write_msg<dq_lidar_pose_without_cov>(cur, &lp);
-        float cov[] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+        /* float cov[] = {1, 2, 3, 4, 5, 6, 7, 8, 9}; */
         /* memcpy(cur, lidar_pose.cov, num_dim * num_dim * sizeof(float)); */
-        memcpy(cur, cov, num_dim * num_dim * sizeof(float));
+        memcpy(cur, lidar_pose.cov, num_dim * num_dim * sizeof(float));
         cur += num_dim * num_dim * sizeof(float);
         msg_size += num_dim * num_dim * sizeof(float);
         meas_types[meas_counter++] = LIDAR_POSE;
-        new_lidar_pose = false;
     }
 
     dq_header header = {meas_counter, source_id};
@@ -297,17 +279,20 @@ void send_message()
                  sizeof(sensor_type) * meas_counter);
     memcpy(buffer + sizeof(dq_header) + sizeof(sensor_type) * meas_counter,
                  msg, msg_size);
+
     debug_msg.header.stamp = nh.now();
     debug_msg.sender_id = source_id;
     debug_msg.num_meas = meas_counter;
     debug_msg.meas_types = (uint8_t *) meas_types;
     debug_msg.meas_types_length = meas_counter;
     pub_debug.publish(&debug_msg);
+
     if (meas_counter > 0)
     {
         Pozyx.writeTXBufferData(buffer, sizeof(dq_header) +
             sizeof(sensor_type) * meas_counter + msg_size);
-        status = Pozyx.sendTXBufferData(chat_id);
+        status = Pozyx.sendTXBufferData(0);
     }
+
     delay(1);
 }

@@ -59,10 +59,10 @@ void setup(){
     nh.initNode();
     nh.advertise(pub_debug);
     nh.advertise(pub_range);
-    nh.advertise(pub_gps);
-    nh.advertise(pub_control);
-    nh.advertise(pub_consensus);
-    nh.advertise(pub_lidar_pose);
+    /* nh.advertise(pub_gps); */
+    /* nh.advertise(pub_control); */
+    /* nh.advertise(pub_consensus); */
+    /* nh.advertise(pub_lidar_pose); */
 
     // initialize Pozyx
     if(!Pozyx.begin(false, MODE_INTERRUPT, POZYX_INT_MASK_RX_DATA, 0)){
@@ -85,21 +85,8 @@ void loop(){
     nh.spinOnce();
 }
 
-void parse_data(uint16_t sender_id, uint8_t *data, uint8_t length)
+size_t get_exp_msg_size(sensor_type *meas_types, uint8_t num_meas)
 {
-
-    uint8_t *cur = data;
-    dq_header header;
-    /* memcpy(&header, cur, sizeof(dq_header)); */
-    /* cur += sizeof(dq_header); */
-    /* read_msg<dq_header>(&header, cur); */
-    read_msg<dq_header>(&header, cur);
-    uint8_t num_meas = header.num_meas;
-
-    sensor_type meas_types[num_meas];
-    memcpy(meas_types, cur, num_meas * sizeof(sensor_type));
-    cur += num_meas * sizeof(sensor_type);
-
     size_t exp_msg_size =
         sizeof(dq_header) +
         num_meas * sizeof(sensor_type);
@@ -128,12 +115,33 @@ void parse_data(uint16_t sender_id, uint8_t *data, uint8_t length)
         }
     }
 
+    return exp_msg_size;
+}
+
+void parse_data(uint16_t sender_id, uint8_t *data, uint8_t length)
+{
+
+    uint8_t *cur = data;
+    dq_header header;
+    /* memcpy(&header, cur, sizeof(dq_header)); */
+    /* cur += sizeof(dq_header); */
+    /* read_msg<dq_header>(&header, cur); */
+    read_msg<dq_header>(&header, cur);
+    uint8_t num_meas = header.num_meas;
+
+    sensor_type meas_types[num_meas];
+    memcpy(meas_types, cur, num_meas * sizeof(sensor_type));
+    cur += num_meas * sizeof(sensor_type);
+
+    size_t exp_msg_size = get_exp_msg_size(meas_types, num_meas);
+
     char buf[50];
     sprintf(buf, "act: %d, exp: %d, act_id: %d, exp_id: %d",
         length, exp_msg_size, sender_id, header.id);
     if (length != exp_msg_size or sender_id != header.id)
     {
         /* nh.loginfo(buf); */
+        /* nh.loginfo("not okay"); */
         return;
     }
 
@@ -205,24 +213,15 @@ void parse_data(uint16_t sender_id, uint8_t *data, uint8_t length)
 
         if (meas_types[i] == LIDAR_POSE)
         {
-            dq_lidar_pose_without_cov lp;
-            /* read_msg<dq_lidar_pose>(&lidar_pose, cur); */
-            read_msg<dq_lidar_pose_without_cov>(&lp, cur);
+            dq_lidar_pose lp;
+            read_msg<dq_lidar_pose>(&lp, cur);
             lidar_pose_msg.header.stamp = nh.now();
             lidar_pose_msg.x = lp.x;
             lidar_pose_msg.y = lp.y;
             lidar_pose_msg.theta = lp.theta;
             lidar_pose_msg.car_id = lp.id;
-            float cov[9];
-            memcpy(cov, cur, num_dim * num_dim * sizeof(float));
-            cur += num_dim * num_dim * sizeof(float);
-            /* memcpy(lidar_pose_msg.cov, cov, num_dim * num_dim * sizeof(float)); */
-            for (size_t i = 0; i < num_dim * num_dim; i++)
-            {
-                lidar_pose_msg.cov[i] = cov[i];
-            }
-
-            /* lidar_pose_msg.cov_length = num_dim * num_dim; */
+            lidar_pose_msg.cov = lp.cov;
+            lidar_pose_msg.cov_length = num_dim * num_dim;
             pub_lidar_pose.publish(&lidar_pose_msg);
         }
     }
@@ -234,7 +233,7 @@ void publish_messages()
     {
         uint16_t sender_id = 0x00;
         uint8_t length = 0;
-        delay(10);
+        delay(1);
         int res_last_id = Pozyx.getLastNetworkId(&sender_id);
         int res_last_length = Pozyx.getLastDataLength(&length);
         if (length > 0 and res_last_id == POZYX_SUCCESS
