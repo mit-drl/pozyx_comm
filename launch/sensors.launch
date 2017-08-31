@@ -1,6 +1,6 @@
 <launch>
 
-    <arg name="baud" default="57600"/>
+    <arg name="baud" default="115200"/>
     <!-- <arg name="receiver_port" default="/dev/serial/by&#45;path/pci&#45;0000:00:14.0&#45;usb&#45;0:1:1.0"/> -->
     <!-- <arg name="sender_port" default="/dev/serial/by&#45;path/pci&#45;0000:00:14.0&#45;usb&#45;0:2:1.0"/> -->
 

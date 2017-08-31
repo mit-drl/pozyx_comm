@@ -1,4 +1,5 @@
 #include <ros.h>
+#include <ArduinoHardware.h>
 #include <Pozyx.h>
 #include <Pozyx_definitions.h>
 #include <Wire.h>
@@ -7,26 +8,38 @@
 #include <multi_car_msgs/UWBRange.h>
 #include <multi_car_msgs/ConsensusMsg.h>
 #include <multi_car_msgs/PozyxDebug.h>
+#include <multi_car_msgs/LidarPose.h>
 #include <common.h>
 
-ros::NodeHandle  nh;
-multi_car_msgs::UWBRange range;
-multi_car_msgs::GPS gps;
-multi_car_msgs::CarControl control;
-multi_car_msgs::ConsensusMsg consensus;
+/* ros::NodeHandle_<ArduinoHardware, 25, 25, 2048, 2048> nh; */
+ros::NodeHandle nh;
+multi_car_msgs::UWBRange range_msg;
+multi_car_msgs::GPS gps_msg;
+multi_car_msgs::CarControl control_msg;
+multi_car_msgs::ConsensusMsg consensus_msg;
 multi_car_msgs::PozyxDebug debug_msg;
+multi_car_msgs::LidarPose lidar_pose_msg;
 
-ros::Publisher pub_debug("/receiver/debug", &debug_msg);
-ros::Publisher pub_range("ranges", &range);
-ros::Publisher pub_gps("fixes", &gps);
-ros::Publisher pub_control("controls", &control);
-ros::Publisher pub_consensus("consensus", &consensus);
+const int num_dim = 3;
+using dq_lidar_pose = dq_lidar_pose_t<num_dim>;
+
+dq_range rng;
+dq_control control;
+dq_gps gps;
+dq_lidar_pose lidar_pose;
+
+ros::Publisher pub_debug("/debug/receiver", &debug_msg);
+ros::Publisher pub_range("ranges", &range_msg);
+ros::Publisher pub_gps("fixes", &gps_msg);
+ros::Publisher pub_control("controls", &control_msg);
+ros::Publisher pub_consensus("consensus", &consensus_msg);
+ros::Publisher pub_lidar_pose("lidar_poses", &lidar_pose_msg);
 
 void setup_uwb()
 {
     UWB_settings_t uwb_settings;
     Pozyx.getUWBSettings(&uwb_settings);
-    uwb_settings.bitrate = 2;
+    uwb_settings.bitrate = 0;
     uwb_settings.plen = 0x08;
     Pozyx.setUWBSettings(&uwb_settings);
 }
@@ -40,13 +53,15 @@ const char *senders[num_cars] = {"6835","6867","685b"}; //every car id (Receiver
 using dq_consensus = dq_consensus_t<2, 3>;
 
 void setup(){
-    Serial.begin(57600);
+    Serial.begin(115200);
+    nh.getHardware()->setBaud(115200);
     nh.initNode();
     nh.advertise(pub_debug);
     nh.advertise(pub_range);
     nh.advertise(pub_gps);
     nh.advertise(pub_control);
     nh.advertise(pub_consensus);
+    nh.advertise(pub_lidar_pose);
 
     // initialize Pozyx
     if(!Pozyx.begin(false, MODE_INTERRUPT, POZYX_INT_MASK_RX_DATA, 0)){
@@ -74,14 +89,16 @@ void parse_data(uint16_t sender_id, uint8_t *data, uint8_t length)
 
     uint8_t *cur = data;
     dq_header header;
-    memcpy(&header, cur, sizeof(dq_header));
-    cur += sizeof(dq_header);
+    /* memcpy(&header, cur, sizeof(dq_header)); */
+    /* cur += sizeof(dq_header); */
     /* read_msg<dq_header>(&header, cur); */
+    read_msg<dq_header>(&header, cur);
     uint8_t num_meas = header.num_meas;
 
     sensor_type meas_types[num_meas];
     memcpy(meas_types, cur, num_meas * sizeof(sensor_type));
     cur += num_meas * sizeof(sensor_type);
+
     size_t exp_msg_size =
         sizeof(dq_header) +
         num_meas * sizeof(sensor_type);
@@ -103,6 +120,10 @@ void parse_data(uint16_t sender_id, uint8_t *data, uint8_t length)
         if (meas_types[i] == CONSENSUS)
         {
             exp_msg_size += sizeof(dq_consensus);
+        }
+        if (meas_types[i] == LIDAR_POSE)
+        {
+            exp_msg_size += sizeof(dq_lidar_pose);
         }
     }
 
@@ -128,55 +149,43 @@ void parse_data(uint16_t sender_id, uint8_t *data, uint8_t length)
 
         if (meas_types[i] == RANGE)
         {
-            /* nh.loginfo("RANGE"); */
-            dq_range rng;
             memcpy(&rng, cur, sizeof(dq_range));
             cur += sizeof(dq_range);
 
             if (rng.dist > 0)
             {
-                range.distance = rng.dist / 1000.0;
-                range.from_id = sender_id;
-                range.to_id = rng.id;
-                range.header.stamp = nh.now();
-                pub_range.publish(&range);
+                range_msg.distance = rng.dist / 1000.0;
+                range_msg.from_id = sender_id;
+                range_msg.to_id = rng.id;
+                range_msg.header.stamp = nh.now();
+                pub_range.publish(&range_msg);
             }
         }
 
         if (meas_types[i] == CONTROL)
         {
-            /* nh.loginfo("CONTROL"); */
-            if (sender_id != 26715)
-            {
-                char buf[50];
-                sprintf(buf, "%d -- %d -- %d", sender_id, length,
-                    meas_types[i]);
-                /* nh.loginfo(buf); */
-            }
-            dq_control con;
-            memcpy(&con, cur, sizeof(dq_control));
+            memcpy(&control, cur, sizeof(dq_control));
             cur += sizeof(dq_control);
-            control.header.stamp = nh.now();
-            control.car_id = sender_id;
-            control.steering_angle = con.steering_angle;
-            control.velocity = con.velocity;
-            pub_control.publish(&control);
+            control_msg.header.stamp = nh.now();
+            control_msg.car_id = sender_id;
+            control_msg.steering_angle = control.steering_angle;
+            control_msg.velocity = control.velocity;
+            pub_control.publish(&control_msg);
         }
 
         if (meas_types[i] == GPS)
         {
-            dq_gps nmea;
-            memcpy(&nmea, cur, sizeof(dq_gps));
+            memcpy(&gps, cur, sizeof(dq_gps));
             cur += sizeof(dq_gps);
-            gps.header.stamp = nh.now();
-            gps.car_id = sender_id;
-            gps.fix.header.stamp = nh.now();
+            gps_msg.header.stamp = nh.now();
+            gps_msg.car_id = sender_id;
+            gps_msg.fix.header.stamp = nh.now();
             //gps.fix.header.frame_id = "world";
-            gps.fix.status.status = nmea.status;
-            gps.fix.latitude = nmea.lat;
-            gps.fix.longitude = nmea.lon;
-            gps.fix.altitude = nmea.alt;
-            pub_gps.publish(&gps);
+            gps_msg.fix.status.status = gps.status;
+            gps_msg.fix.latitude = gps.lat;
+            gps_msg.fix.longitude = gps.lon;
+            gps_msg.fix.altitude = gps.alt;
+            pub_gps.publish(&gps_msg);
         }
 
         if (meas_types[i] == CONSENSUS)
@@ -184,37 +193,52 @@ void parse_data(uint16_t sender_id, uint8_t *data, uint8_t length)
             dq_consensus cons;
             memcpy(&cons, cur, sizeof(dq_consensus));
             cur += sizeof(dq_consensus);
-            consensus.header.stamp = nh.now();
-            consensus.confidences = cons.confidences;
-            consensus.confidences_length = 2 * 3 * 2 * 3;
-            consensus.states = cons.states;
-            consensus.states_length = 2 * 3;
-            consensus.car_id = cons.id;
-            pub_consensus.publish(&consensus);
+            consensus_msg.header.stamp = nh.now();
+            consensus_msg.confidences = cons.confidences;
+            consensus_msg.confidences_length = 2 * 3 * 2 * 3;
+            consensus_msg.states = cons.states;
+            consensus_msg.states_length = 2 * 3;
+            consensus_msg.car_id = cons.id;
+            pub_consensus.publish(&consensus_msg);
+        }
+
+        if (meas_types[i] == LIDAR_POSE)
+        {
+            dq_lidar_pose_without_cov lp;
+            /* read_msg<dq_lidar_pose>(&lidar_pose, cur); */
+            read_msg<dq_lidar_pose_without_cov>(&lp, cur);
+            lidar_pose_msg.header.stamp = nh.now();
+            lidar_pose_msg.x = lp.x;
+            lidar_pose_msg.y = lp.y;
+            lidar_pose_msg.theta = lp.theta;
+            lidar_pose_msg.car_id = lp.id;
+            float cov[9];
+            memcpy(cov, cur, num_dim * num_dim * sizeof(float));
+            cur += num_dim * num_dim * sizeof(float);
+            /* memcpy(lidar_pose_msg.cov, cov, num_dim * num_dim * sizeof(float)); */
+            for (size_t i = 0; i < num_dim * num_dim; i++)
+            {
+                lidar_pose_msg.cov[i] = cov[i];
+            }
+
+            /* lidar_pose_msg.cov_length = num_dim * num_dim; */
+            pub_lidar_pose.publish(&lidar_pose_msg);
         }
     }
 }
 
 void publish_messages()
 {
-    if (Pozyx.waitForFlag(POZYX_INT_STATUS_RX_DATA, 50))
+    if (Pozyx.waitForFlag(POZYX_INT_STATUS_RX_DATA, 100))
     {
-        bool other_car = true;
         uint16_t sender_id = 0x00;
         uint8_t length = 0;
-        delay(1);
+        delay(10);
         int res_last_id = Pozyx.getLastNetworkId(&sender_id);
-        /* if (sender_id == senders[this_car]) { */
-        /*   other_car = false; */
-        /* } */
-
         int res_last_length = Pozyx.getLastDataLength(&length);
         if (length > 0 and res_last_id == POZYX_SUCCESS
             and res_last_length == POZYX_SUCCESS)
         {
-            char buf[50];
-            sprintf(buf, "%d", length);
-            /* nh.loginfo(buf); */
             uint8_t data[length];
             Pozyx.readRXBufferData(data, length);
             parse_data(sender_id, data, length);
