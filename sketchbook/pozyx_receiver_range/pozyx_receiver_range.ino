@@ -41,7 +41,7 @@ void setup_uwb()
     Pozyx.getUWBSettings(&uwb_settings);
     uwb_settings.bitrate = 0;
     uwb_settings.plen = 0x08;
-    uwb_settings.channel = 1;
+    /* uwb_settings.channel = 1; */
     Pozyx.setUWBSettings(&uwb_settings);
 }
 
