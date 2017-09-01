@@ -43,7 +43,7 @@ multi_car_msgs::PozyxDebug debug_msg;
 ros::Publisher pub_debug("/debug/sender", &debug_msg);
 
 multi_car_msgs::UWBRange range_msg;
-ros::Publisher pub_range("/ranges", &range_msg);
+/* ros::Publisher pub_range("/ranges", &range_msg); */
 
 multi_car_msgs::CarControl control;
 multi_car_msgs::LidarPose lidar_pose;
@@ -107,7 +107,7 @@ void setup()
     nh.initNode();
     nh.advertise(pub_gps);
     nh.advertise(pub_debug);
-    nh.advertise(pub_range);
+    /* nh.advertise(pub_range); */
     /* nh.subscribe(car_control_sub); */
     /* nh.subscribe(car_odom_sub); */
     /* nh.subscribe(consensus_sub); */
@@ -199,7 +199,7 @@ void send_message()
                 range_msg.from_id = source_id;
                 range_msg.to_id = car_ids[i];
                 range_msg.header.stamp = nh.now();
-                pub_range.publish(&range_msg);
+                /* pub_range.publish(&range_msg); */
             }
         }
     }

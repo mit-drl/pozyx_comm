@@ -30,10 +30,10 @@ dq_lidar_pose lidar_pose;
 
 ros::Publisher pub_debug("/debug/receiver", &debug_msg);
 ros::Publisher pub_range("ranges", &range_msg);
-ros::Publisher pub_gps("fixes", &gps_msg);
-ros::Publisher pub_control("controls", &control_msg);
-ros::Publisher pub_consensus("consensus", &consensus_msg);
-ros::Publisher pub_lidar_pose("lidar_poses", &lidar_pose_msg);
+/* ros::Publisher pub_gps("fixes", &gps_msg); */
+/* ros::Publisher pub_control("controls", &control_msg); */
+/* ros::Publisher pub_consensus("consensus", &consensus_msg); */
+/* ros::Publisher pub_lidar_pose("lidar_poses", &lidar_pose_msg); */
 
 void setup_uwb()
 {
@@ -179,7 +179,7 @@ void parse_data(uint16_t sender_id, uint8_t *data, uint8_t length)
             control_msg.car_id = sender_id;
             control_msg.steering_angle = control.steering_angle;
             control_msg.velocity = control.velocity;
-            pub_control.publish(&control_msg);
+            /* pub_control.publish(&control_msg); */
         }
 
         if (meas_types[i] == GPS)
@@ -194,7 +194,7 @@ void parse_data(uint16_t sender_id, uint8_t *data, uint8_t length)
             gps_msg.fix.latitude = gps.lat;
             gps_msg.fix.longitude = gps.lon;
             gps_msg.fix.altitude = gps.alt;
-            pub_gps.publish(&gps_msg);
+            /* pub_gps.publish(&gps_msg); */
         }
 
         if (meas_types[i] == CONSENSUS)
@@ -208,7 +208,7 @@ void parse_data(uint16_t sender_id, uint8_t *data, uint8_t length)
             consensus_msg.states = cons.states;
             consensus_msg.states_length = 2 * 3;
             consensus_msg.car_id = cons.id;
-            pub_consensus.publish(&consensus_msg);
+            /* pub_consensus.publish(&consensus_msg); */
         }
 
         if (meas_types[i] == LIDAR_POSE)
@@ -222,7 +222,7 @@ void parse_data(uint16_t sender_id, uint8_t *data, uint8_t length)
             lidar_pose_msg.car_id = lp.id;
             lidar_pose_msg.cov = lp.cov;
             lidar_pose_msg.cov_length = num_dim * num_dim;
-            pub_lidar_pose.publish(&lidar_pose_msg);
+            /* pub_lidar_pose.publish(&lidar_pose_msg); */
         }
     }
 }
