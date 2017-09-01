@@ -1,4 +1,7 @@
 
+#include <Pozyx.h>
+#include <Pozyx_definitions.h>
+
 typedef enum sensor_type_t {
 	RANGE, GPS, CONTROL, CONSENSUS, LIDAR_POSE
 } sensor_type;
@@ -68,4 +71,14 @@ size_t write_msg(uint8_t *&cur, type *msg)
     memcpy(cur, msg, sizeof(type));
     cur += sizeof(type);
     return sizeof(type);
+}
+
+void setup_uwb()
+{
+    UWB_settings_t uwb_settings;
+    Pozyx.getUWBSettings(&uwb_settings);
+    uwb_settings.bitrate = 2;
+    uwb_settings.plen = 0x08;
+    /* uwb_settings.channel = 1; */
+    Pozyx.setUWBSettings(&uwb_settings);
 }
