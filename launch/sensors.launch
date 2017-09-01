@@ -29,7 +29,7 @@
         <param name="port" value="$(arg port)"/>
         <param name="private_key" value="EjAodXdkTz6RPETFE" />
         <param name="description" value="qux robot" />
-        <rosparam>
+        <rosparam subst_value="True">
             publishing:
                 - /control
                 - /fix
