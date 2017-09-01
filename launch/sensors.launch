@@ -41,10 +41,14 @@
                 - multi_car_msgs/ConsensusMsg
                 - multi_car_msgs/LidarPose
             trusted:
-                - .*
-                - .*
-                - .*
-                - .*
+                - ".*"
+                - ".*"
+                - ".*"
+                - ".*"
+            global_frames:
+                - $(env CAR_FRAME_ID)
+                - earth
+                - map
         </rosparam>
 
     </node>
