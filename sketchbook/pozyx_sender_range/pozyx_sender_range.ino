@@ -164,11 +164,10 @@ void send_message()
 
     if (meas_counter > 0)
     {
-        Pozyx.writeTXBufferData(buffer, sizeof(dq_header) +
-            sizeof(sensor_type) * meas_counter + msg_size);
         for (size_t i = 0; i < num_cars; i++)
         {
-            status = Pozyx.sendTXBufferData(car_ids[i]);
+            status = Pozyx.sendData(car_ids[i], buffer, sizeof(dq_header) +
+                sizeof(sensor_type) * meas_counter + msg_size);
         }
     }
 
